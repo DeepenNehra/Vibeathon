@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase-server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { StartCallButton } from '@/components/dashboard/start-call-button'
+import { LogoutButton } from '@/components/dashboard/logout-button'
+import { AnimatedLogo } from '@/components/ui/animated-logo'
 
 interface Patient {
   name: string
@@ -30,27 +32,32 @@ export default async function DashboardPage() {
   }
 
   // Fetch upcoming consultations for the authenticated doctor
-  const { data: consultations, error } = await supabase
-    .from('consultations')
-    .select(`
-      id,
-      consultation_date,
-      patient_id,
-      approved,
-      patients (
-        name,
-        preferred_language
-      )
-    `)
-    .eq('doctor_id', session.user.id)
-    .order('consultation_date', { ascending: true })
-    .limit(10)
+  let upcomingConsultations: Consultation[] = []
+  
+  try {
+    const { data: consultations, error } = await supabase
+      .from('consultations')
+      .select(`
+        id,
+        consultation_date,
+        patient_id,
+        approved,
+        patients (
+          name,
+          preferred_language
+        )
+      `)
+      .eq('doctor_id', session.user.id)
+      .order('consultation_date', { ascending: true })
+      .limit(10)
 
-  if (error) {
-    console.error('Error fetching consultations:', error)
+    if (!error && consultations) {
+      upcomingConsultations = consultations as Consultation[]
+    }
+  } catch (err) {
+    // Silently handle database errors - tables might not exist yet
+    upcomingConsultations = []
   }
-
-  const upcomingConsultations = (consultations || []) as Consultation[]
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -59,7 +66,7 @@ export default async function DashboardPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-8">
-              <h1 className="text-2xl font-bold">Arogya-AI</h1>
+              <AnimatedLogo size="md" href="/dashboard" />
               <nav className="flex gap-6">
                 <Link 
                   href="/dashboard" 
@@ -75,11 +82,7 @@ export default async function DashboardPage() {
                 </Link>
               </nav>
             </div>
-            <form action="/auth/signout" method="post">
-              <Button variant="outline" type="submit" size="sm">
-                Sign Out
-              </Button>
-            </form>
+            <LogoutButton />
           </div>
         </div>
       </header>

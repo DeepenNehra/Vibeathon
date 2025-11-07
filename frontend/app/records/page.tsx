@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase-server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientRecordsClient } from '@/components/records/patient-records-client'
+import { LogoutButton } from '@/components/dashboard/logout-button'
+import { AnimatedLogo } from '@/components/ui/animated-logo'
 
 interface Patient {
   id: string
@@ -35,56 +37,62 @@ export default async function RecordsPage() {
   }
 
   // Fetch all patients for the authenticated doctor (via consultations)
-  // Using a subquery to get unique patients who have consultations with this doctor
-  const { data: consultationsData, error: consultationsError } = await supabase
-    .from('consultations')
-    .select(`
-      patient_id,
-      patients (
-        id,
-        name,
-        date_of_birth,
-        preferred_language
-      )
-    `)
-    .eq('doctor_id', session.user.id)
+  let patientsWithConsultations: PatientWithConsultations[] = []
 
-  if (consultationsError) {
-    console.error('Error fetching patients:', consultationsError)
-  }
+  try {
+    // Using a subquery to get unique patients who have consultations with this doctor
+    const { data: consultationsData, error: consultationsError } = await supabase
+      .from('consultations')
+      .select(`
+        patient_id,
+        patients (
+          id,
+          name,
+          date_of_birth,
+          preferred_language
+        )
+      `)
+      .eq('doctor_id', session.user.id)
 
-  // Extract unique patients
-  const patientsMap = new Map<string, Patient>()
-  consultationsData?.forEach((consultation: any) => {
-    const patient = Array.isArray(consultation.patients) 
-      ? consultation.patients[0] 
-      : consultation.patients
-    
-    if (patient && !patientsMap.has(patient.id)) {
-      patientsMap.set(patient.id, patient)
+    if (!consultationsError && consultationsData) {
+      // Extract unique patients
+      const patientsMap = new Map<string, Patient>()
+      consultationsData.forEach((consultation: any) => {
+        const patient = Array.isArray(consultation.patients) 
+          ? consultation.patients[0] 
+          : consultation.patients
+        
+        if (patient && !patientsMap.has(patient.id)) {
+          patientsMap.set(patient.id, patient)
+        }
+      })
+
+      const patients = Array.from(patientsMap.values())
+
+      // Fetch all consultations for these patients
+      const patientIds = patients.map(p => p.id)
+      
+      if (patientIds.length > 0) {
+        const { data: allConsultations, error: allConsultationsError } = await supabase
+          .from('consultations')
+          .select('id, patient_id, consultation_date, approved, raw_soap_note')
+          .eq('doctor_id', session.user.id)
+          .in('patient_id', patientIds)
+          .order('consultation_date', { ascending: false })
+
+        if (!allConsultationsError && allConsultations) {
+          // Group consultations by patient
+          patientsWithConsultations = patients.map(patient => ({
+            ...patient,
+            consultations: allConsultations.filter(c => c.patient_id === patient.id)
+          }))
+        }
+      }
     }
-  })
-
-  const patients = Array.from(patientsMap.values())
-
-  // Fetch all consultations for these patients
-  const patientIds = patients.map(p => p.id)
-  const { data: allConsultations, error: allConsultationsError } = await supabase
-    .from('consultations')
-    .select('id, patient_id, consultation_date, approved, raw_soap_note')
-    .eq('doctor_id', session.user.id)
-    .in('patient_id', patientIds.length > 0 ? patientIds : [''])
-    .order('consultation_date', { ascending: false })
-
-  if (allConsultationsError) {
-    console.error('Error fetching consultations:', allConsultationsError)
+  } catch (err) {
+    // Silently handle database errors - tables might not exist yet
+    patientsWithConsultations = []
   }
-
-  // Group consultations by patient
-  const patientsWithConsultations: PatientWithConsultations[] = patients.map(patient => ({
-    ...patient,
-    consultations: (allConsultations || []).filter(c => c.patient_id === patient.id)
-  }))
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -93,7 +101,7 @@ export default async function RecordsPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-8">
-              <h1 className="text-2xl font-bold">Arogya-AI</h1>
+              <AnimatedLogo size="md" href="/dashboard" />
               <nav className="flex gap-6">
                 <Link 
                   href="/dashboard" 
@@ -109,11 +117,7 @@ export default async function RecordsPage() {
                 </Link>
               </nav>
             </div>
-            <form action="/auth/signout" method="post">
-              <Button variant="outline" type="submit" size="sm">
-                Sign Out
-              </Button>
-            </form>
+            <LogoutButton />
           </div>
         </div>
       </header>
