@@ -86,18 +86,18 @@
   - Create links to SOAP note review pages for past consultations
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 6. Initialize FastAPI backend project
-  - [ ] 6.1 Create FastAPI project structure
+- [x] 6. Initialize FastAPI backend project
+  - [x] 6.1 Create FastAPI project structure
     - Set up backend/ directory with app/ subdirectory
     - Create main.py with FastAPI app initialization
     - Configure CORS middleware for Next.js frontend
     - Create requirements.txt with dependencies (fastapi, uvicorn, websockets, supabase, google-cloud-speech, google-cloud-translate, google-generativeai, sentence-transformers, openai)
     - _Requirements: 3.2_
-  - [ ] 6.2 Create Pydantic models
+  - [x] 6.2 Create Pydantic models
     - Define LexiconTerm, SoapNoteResponse, StigmaSuggestion, SoapGenerationResponse models
     - Add validation rules for all fields
     - _Requirements: 5.2, 6.3, 7.4_
-  - [ ] 6.3 Implement database client module
+  - [x] 6.3 Implement database client module
     - Create database.py with Supabase client initialization
     - Implement append_transcript method
     - Implement get_full_transcript method
@@ -106,7 +106,7 @@
     - Implement add_lexicon_term method
     - _Requirements: 3.5, 5.4, 5.5, 6.5, 7.5, 10.5_
 
-- [ ] 7. Implement WebSocket connection manager
+- [x] 7. Implement WebSocket connection manager
   - Create connection_manager.py with ConnectionManager class
   - Implement connect method to track WebSocket connections per consultation
   - Implement disconnect method with cleanup
