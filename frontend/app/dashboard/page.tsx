@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { StartCallButton } from '@/components/dashboard/start-call-button'
 import { LogoutButton } from '@/components/dashboard/logout-button'
+import { AnimatedLogo } from '@/components/ui/animated-logo'
 
 interface Patient {
   name: string
@@ -65,7 +66,7 @@ export default async function DashboardPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-8">
-              <h1 className="text-2xl font-bold">Arogya-AI</h1>
+              <AnimatedLogo size="md" href="/dashboard" />
               <nav className="flex gap-6">
                 <Link 
                   href="/dashboard" 
