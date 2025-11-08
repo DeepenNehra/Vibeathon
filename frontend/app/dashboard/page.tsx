@@ -3,23 +3,22 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { StartCallButton } from '@/components/dashboard/start-call-button'
+import { DoctorAppointmentsList } from '@/components/appointments/doctor-appointments-list'
 import { LogoutButton } from '@/components/dashboard/logout-button'
 import { AvailabilityToggle } from '@/components/dashboard/availability-toggle'
 import { AnimatedLogo } from '@/components/ui/animated-logo'
 import { Activity, Users, TrendingUp, Zap, Sparkles, Heart, Brain, Shield, Calendar, Clock, Video, FileText, Award, Target, BarChart3, Star, Stethoscope } from 'lucide-react'
 
-interface Patient {
-  name: string
-  preferred_language: string
-}
-
-interface Consultation {
+interface Appointment {
   id: string
-  consultation_date: string
   patient_id: string
-  approved: boolean
-  patients: Patient | Patient[] | null
+  date: string
+  time: string
+  status: string
+  symptom_category: string | null
+  severity: number | null
+  consultation_fee: number
+  created_at: string
 }
 
 function extractDoctorName(email: string): string {
@@ -62,30 +61,39 @@ export default async function DashboardPage() {
     doctorName = extractDoctorName(session.user.email || 'Doctor')
   }
 
-  let upcomingConsultations: Consultation[] = []
+  // Fetch scheduled appointments from database
+  let scheduledAppointments: Appointment[] = []
+  let totalAppointments = 0
   
   try {
-    const { data: consultations, error } = await supabase
-      .from('consultations')
-      .select(`
-        id,
-        consultation_date,
-        patient_id,
-        approved,
-        patients (
-          name,
-          preferred_language
-        )
-      `)
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Fetch all appointments for stats
+    const { data: allAppointments } = await supabase
+      .from('appointments')
+      .select('id, status')
       .eq('doctor_id', session.user.id)
-      .order('consultation_date', { ascending: true })
-      .limit(10)
+    
+    totalAppointments = allAppointments?.length || 0
+    
+    // Fetch upcoming scheduled appointments
+    const { data: appointments, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('doctor_id', session.user.id)
+      .eq('status', 'scheduled')
+      .gte('date', today)
+      .order('date', { ascending: true })
+      .order('time', { ascending: true })
+      .limit(5)
 
-    if (!error && consultations) {
-      upcomingConsultations = consultations as Consultation[]
+    if (!error && appointments) {
+      scheduledAppointments = appointments as Appointment[]
     }
   } catch (err) {
-    upcomingConsultations = []
+    console.error('Error fetching appointments:', err)
+    scheduledAppointments = []
   }
 
   return (
@@ -194,6 +202,7 @@ export default async function DashboardPage() {
                         <Star className="w-4 h-4 text-white fill-white" />
                       </div>
                     </div>
+<<<<<<< HEAD
                     
                     <div>
                       <div className="flex items-center gap-2 mb-2">
@@ -217,10 +226,48 @@ export default async function DashboardPage() {
                         Ready to provide exceptional care
                         <Heart className="w-5 h-5 text-pink-500 animate-heartbeat fill-pink-500" />
                       </p>
+=======
+                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-white dark:border-slate-900 animate-pulse" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
+                      <span className="text-xs font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wider">
+                        Welcome Back
+                      </span>
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 dark:from-teal-400 dark:via-cyan-400 dark:to-blue-400 bg-clip-text text-transparent animate-gradient">
+                      Dr. {doctorName}
+                    </h1>
+                    <p className="text-slate-600 dark:text-slate-400 mt-2 flex items-center gap-2 font-medium">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500" />
+                      </span>
+                      Ready to provide exceptional care
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Animated Stats Cards */}
+              <div className="flex gap-4">
+                <div className="group/stat relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-2xl blur-lg opacity-50 group-hover/stat:opacity-75 transition-opacity" />
+                  <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl transform group-hover/stat:scale-110 group-hover/stat:-rotate-2 transition-all duration-300">
+                    <div className="text-4xl font-black bg-gradient-to-br from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                      {totalAppointments}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-1">
+                      <Activity className="w-3 h-3" />
+                      Total Appointments
+>>>>>>> 4b20c0374553bc31e28eaea86321821e1f3fbc86
                     </div>
                   </div>
                 </div>
                 
+<<<<<<< HEAD
                 {/* Enhanced Animated Stats Cards */}
                 <div className="flex gap-5">
                   <div className="group/stat relative">
@@ -265,6 +312,17 @@ export default async function DashboardPage() {
                       <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
                         Approved
                       </div>
+=======
+                <div className="group/stat relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl blur-lg opacity-50 group-hover/stat:opacity-75 transition-opacity" />
+                  <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl transform group-hover/stat:scale-110 group-hover/stat:rotate-2 transition-all duration-300">
+                    <div className="text-4xl font-black bg-gradient-to-br from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                      {scheduledAppointments.length}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-1">
+                      <Zap className="w-3 h-3" />
+                      Scheduled
+>>>>>>> 4b20c0374553bc31e28eaea86321821e1f3fbc86
                     </div>
                   </div>
                 </div>
@@ -273,6 +331,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Enhanced Quick Action Card */}
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-3xl blur-2xl opacity-30 group-hover:opacity-60 transition-opacity animate-pulse-slow" />
@@ -307,6 +366,10 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+=======
+        {/* Appointments Section */}
+        <DoctorAppointmentsList doctorId={session.user.id} />
+>>>>>>> 4b20c0374553bc31e28eaea86321821e1f3fbc86
 
         {/* Enhanced Feature Cards Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
