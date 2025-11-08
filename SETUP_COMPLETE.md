@@ -74,11 +74,13 @@ npm run dev
 
 ### Environment Variables (backend/.env):
 ```bash
-✅ GEMINI_API_KEY=AIzaSyCvhOlXPza3sTI_FLIXtm3jsVaSReNI23Q
+✅ GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
 ✅ GOOGLE_APPLICATION_CREDENTIALS=./google-credentials.json
-✅ SUPABASE_URL=https://uqljtqnjanemvdkxnnjj.supabase.co
-✅ SUPABASE_SERVICE_KEY=[configured]
+✅ SUPABASE_URL=YOUR_SUPABASE_URL_HERE
+✅ SUPABASE_SERVICE_KEY=YOUR_SUPABASE_SERVICE_KEY_HERE
 ```
+
+**⚠️ IMPORTANT:** Never commit actual API keys to Git! Keep them in `.env` files only.
 
 ### Google Cloud:
 ```bash
