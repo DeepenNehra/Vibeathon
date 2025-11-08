@@ -78,6 +78,7 @@ export default function AuthPage() {
   const [yearsOfExperience, setYearsOfExperience] = useState('')
   const [consultationFee, setConsultationFee] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0)
@@ -127,6 +128,7 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
 
     if (!validateForm()) {
       return
@@ -193,7 +195,7 @@ export default function AuthPage() {
           window.location.href = role === 'doctor' ? '/dashboard' : '/patient/dashboard'
           return
         } else if (data.user && !data.session) {
-          setError('Account created! Please check your email to confirm your account before signing in.')
+          setSuccess('Account created! Please check your email to verify your account before signing in.')
           setLoading(false)
         } else {
           setError('Sign up successful but no user created. Please try again.')
@@ -473,9 +475,9 @@ export default function AuthPage() {
               </div>
             )}
 
-            {error && (
-              <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 p-3 rounded-lg border border-red-200 dark:border-red-800 animate-shake">
-                {error}
+            {success && (
+              <div className="text-sm text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 p-3 rounded-lg border border-teal-200 dark:border-teal-800">
+                {success}
               </div>
             )}
 
@@ -513,6 +515,7 @@ export default function AuthPage() {
               onClick={() => {
                 setMode(mode === 'signin' ? 'signup' : 'signin')
                 setError('')
+                setSuccess('')
               }}
               className="w-full text-center text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition-colors duration-200 py-2"
               disabled={loading}
