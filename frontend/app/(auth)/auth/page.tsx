@@ -91,14 +91,14 @@ export default function AuthPage() {
   }, [])
 
   // Compute email placeholder - consistent for SSR
-  const emailPlaceholder = mode === 'signup' 
+  const emailPlaceholder = mode === 'signup'
     ? (role === 'doctor' ? 'doctor@arogya.ai' : 'patient@arogya.ai')
     : 'your.email@example.com'
 
   // Rotate quotes every 7 seconds
   useEffect(() => {
     if (!mounted) return
-    
+
     const interval = setInterval(() => {
       setFadeIn(false)
       setTimeout(() => {
@@ -229,7 +229,7 @@ export default function AuthPage() {
         backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)',
         backgroundSize: '40px 40px'
       }} />
-      
+
       {/* Floating medical icons - subtle and contained */}
       {mounted && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -277,10 +277,9 @@ export default function AuthPage() {
 
           {/* Right Panel - Rotating Quote */}
           <div className="hidden lg:block absolute right-8 top-1/2 -translate-y-1/2 w-64 z-5">
-            <div 
-              className={`bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-lg border-2 border-cyan-200 dark:border-cyan-800 transition-all duration-700 ${
-                fadeIn ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
-              }`}
+            <div
+              className={`bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-lg border-2 border-cyan-200 dark:border-cyan-800 transition-all duration-700 ${fadeIn ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
+                }`}
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 rounded-lg">
@@ -297,17 +296,16 @@ export default function AuthPage() {
               <p className="text-xs text-cyan-600 dark:text-cyan-400 font-semibold">
                 — {medicalQuotes[currentQuoteIndex].author}
               </p>
-              
+
               {/* Quote indicators */}
               <div className="flex gap-1.5 mt-4 justify-center">
                 {medicalQuotes.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-1.5 rounded-full transition-all duration-500 ${
-                      index === currentQuoteIndex
-                        ? 'w-6 bg-gradient-to-r from-cyan-500 to-blue-600'
-                        : 'w-1.5 bg-slate-300 dark:bg-slate-700'
-                    }`}
+                    className={`h-1.5 rounded-full transition-all duration-500 ${index === currentQuoteIndex
+                      ? 'w-6 bg-gradient-to-r from-cyan-500 to-blue-600'
+                      : 'w-1.5 bg-slate-300 dark:bg-slate-700'
+                      }`}
                   />
                 ))}
               </div>
@@ -320,7 +318,7 @@ export default function AuthPage() {
       <Card className="relative z-10 w-full max-w-md bg-white dark:bg-zinc-900 border-2 border-teal-200 dark:border-teal-800 shadow-2xl overflow-hidden transition-shadow duration-500 hover:shadow-teal-500/20 hover:shadow-3xl">
         {/* Animated gradient header */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 animate-gradient" style={{ backgroundSize: '200% 200%' }} />
-        
+
         <CardHeader className="relative space-y-3 pt-8">
           {/* Logo/Icon */}
           <div className="flex justify-center mb-2">
@@ -328,11 +326,11 @@ export default function AuthPage() {
               <Activity className="w-8 h-8 text-white animate-heartbeat" />
             </div>
           </div>
-          
+
           <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 bg-clip-text text-transparent">
             Arogya-AI
           </CardTitle>
-          
+
           <CardDescription className="text-center text-base">
             {mode === 'signin'
               ? 'Welcome back! Sign in to continue your healthcare journey'
@@ -348,15 +346,15 @@ export default function AuthPage() {
                 Email Address
               </label>
               <Input
-                  id="email"
-                  type="email"
-                  placeholder={emailPlaceholder}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                  aria-invalid={!!error}
-                  className="border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500 transition-all duration-300"
-                />
+                id="email"
+                type="email"
+                placeholder={emailPlaceholder}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                aria-invalid={!!error}
+                className="border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500 transition-all duration-300"
+              />
             </div>
 
             <div className="space-y-2">
@@ -365,15 +363,15 @@ export default function AuthPage() {
                 Password
               </label>
               <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                  aria-invalid={!!error}
-                  className="border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500 transition-all duration-300"
-                />
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                aria-invalid={!!error}
+                className="border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500 transition-all duration-300"
+              />
             </div>
 
             {/* Role Selection - Only show during signup */}
@@ -387,11 +385,10 @@ export default function AuthPage() {
                     <button
                       type="button"
                       onClick={() => setRole('doctor')}
-                      className={`p-4 border-2 rounded-xl transition-all duration-300 ${
-                        role === 'doctor'
-                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30 shadow-md'
-                          : 'border-zinc-200 dark:border-zinc-800 hover:border-teal-300 dark:hover:border-teal-700'
-                      }`}
+                      className={`p-4 border-2 rounded-xl transition-all duration-300 ${role === 'doctor'
+                        ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30 shadow-md'
+                        : 'border-zinc-200 dark:border-zinc-800 hover:border-teal-300 dark:hover:border-teal-700'
+                        }`}
                     >
                       <Stethoscope className={`w-6 h-6 mx-auto mb-2 ${role === 'doctor' ? 'text-teal-600 dark:text-teal-400' : 'text-zinc-400'}`} />
                       <div className={`font-semibold text-sm ${role === 'doctor' ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-600 dark:text-zinc-400'}`}>
@@ -401,11 +398,10 @@ export default function AuthPage() {
                     <button
                       type="button"
                       onClick={() => setRole('patient')}
-                      className={`p-4 border-2 rounded-xl transition-all duration-300 ${
-                        role === 'patient'
-                          ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30 shadow-md'
-                          : 'border-zinc-200 dark:border-zinc-800 hover:border-cyan-300 dark:hover:border-cyan-700'
-                      }`}
+                      className={`p-4 border-2 rounded-xl transition-all duration-300 ${role === 'patient'
+                        ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30 shadow-md'
+                        : 'border-zinc-200 dark:border-zinc-800 hover:border-cyan-300 dark:hover:border-cyan-700'
+                        }`}
                     >
                       <Heart className={`w-6 h-6 mx-auto mb-2 ${role === 'patient' ? 'text-cyan-600 dark:text-cyan-400 animate-heartbeat' : 'text-zinc-400'}`} />
                       <div className={`font-semibold text-sm ${role === 'patient' ? 'text-cyan-700 dark:text-cyan-300' : 'text-zinc-600 dark:text-zinc-400'}`}>
@@ -502,23 +498,23 @@ export default function AuthPage() {
               </div>
             )}
 
-            <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-6 rounded-lg shadow-lg shadow-teal-500/30 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]" 
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <Activity className="w-5 h-5 animate-spin" />
-                    Processing...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    {mode === 'signin' ? 'Sign In' : 'Create Account'}
-                    <Heart className="w-5 h-5 animate-heartbeat" />
-                  </span>
-                )}
-              </Button>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-6 rounded-lg shadow-lg shadow-teal-500/30 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 animate-spin" />
+                  Processing...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  {mode === 'signin' ? 'Sign In' : 'Create Account'}
+                  <Heart className="w-5 h-5 animate-heartbeat" />
+                </span>
+              )}
+            </Button>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
