@@ -36,7 +36,7 @@ db_client = DatabaseClient()
 class ConnectionManager:
     """Manages WebSocket connections for real-time communication"""
     
-    def __init__(self):
+    def _init_(self):
         self.active_connections: Dict[str, WebSocket] = {}
     
     async def connect(self, user_id: str, websocket: WebSocket):

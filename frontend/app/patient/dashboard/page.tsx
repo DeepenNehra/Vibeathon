@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { LogoutButton } from '@/components/dashboard/logout-button'
 import { AnimatedLogo } from '@/components/ui/animated-logo'
 import { Calendar, FileText, Video, Heart, Clock, User } from 'lucide-react'
+import PatientSymptomChecker from '@/components/patient/PatientSymptomChecker'
 
 // Extract patient name from email
 function extractPatientName(email: string): string {
@@ -178,6 +179,11 @@ export default async function PatientDashboard() {
               </Link>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Symptom Checker */}
+        <div className="mb-8">
+          <PatientSymptomChecker />
         </div>
 
         {/* Upcoming Appointments */}
