@@ -15,15 +15,62 @@ import json
 from .alert_engine import AlertEngine, Alert
 from .emotion_analyzer import EmotionAnalyzer, EmotionResult
 from .database import DatabaseClient
-from .stt_pipeline import get_stt_pipeline
+from .stt_pipeline import get_stt_pipeline, validate_stt_configuration
 from .audio_converter_ffmpeg import get_audio_converter
 from .appointments import router as appointments_router
 from .lab_reports import router as lab_reports_router
 from .medical_images import router as medical_images_router
 from .signaling import router as signaling_router
 from .voice_intake import router as voice_intake_router
+from .health_tips import router as health_tips_router
+from .captions import router as captions_router
+from .summarizer import generate_notes_with_empathy
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arogya-AI Medical Intelligence API")
+
+# Startup event to validate configuration
+@app.on_event("startup")
+async def startup_validation():
+    """Validate STT pipeline configuration at startup."""
+    logger.info("=" * 80)
+    logger.info("🚀 Starting Arogya-AI Medical Intelligence API")
+    logger.info("=" * 80)
+    
+    # Validate STT configuration
+    logger.info("🔍 Validating STT Pipeline Configuration...")
+    validation_result = validate_stt_configuration()
+    
+    logger.info("\n📊 Configuration Status:")
+    logger.info(f"   Google Cloud Libraries: {'✅ Available' if validation_result['google_cloud_available'] else '❌ Not Available'}")
+    logger.info(f"   Google Cloud Credentials: {'✅ Valid' if validation_result['google_credentials_valid'] else '❌ Invalid'}")
+    logger.info(f"   Google Speech-to-Text: {'✅ Ready' if validation_result['google_speech_client'] else '❌ Not Available'}")
+    logger.info(f"   Google Translation: {'✅ Ready' if validation_result['google_translate_client'] else '❌ Not Available'}")
+    logger.info(f"   OpenAI Whisper (Fallback): {'✅ Ready' if validation_result['openai_client'] else '❌ Not Available'}")
+    
+    # Log warnings
+    if validation_result['warnings']:
+        logger.info("\n⚠️  Warnings:")
+        for warning in validation_result['warnings']:
+            logger.warning(f"   - {warning}")
+    
+    # Log errors
+    if validation_result['errors']:
+        logger.info("\n❌ Errors:")
+        for error in validation_result['errors']:
+            logger.error(f"   - {error}")
+        logger.error("\n⚠️  Live captions may not work properly without a valid ASR service!")
+    else:
+        logger.info("\n✅ All critical services initialized successfully")
+    
+    logger.info("=" * 80)
 
 # Include appointment routes
 app.include_router(appointments_router)
@@ -36,6 +83,10 @@ app.include_router(medical_images_router)
 app.include_router(signaling_router)
 # Include voice intake routes
 app.include_router(voice_intake_router)
+# Include health tips routes
+app.include_router(health_tips_router)
+# Include captions routes for live transcription
+app.include_router(captions_router)
 
 # Enable CORS for frontend integration
 app.add_middleware(
@@ -470,6 +521,131 @@ async def get_patterns():
     return {
         "patterns": alert_engine.critical_patterns
     }
+
+
+# ============================================================================
+# SOAP NOTES GENERATION ENDPOINTS
+# ============================================================================
+
+@app.post("/api/consultations/{consultation_id}/generate_soap")
+async def generate_soap_notes(consultation_id: str):
+    """
+    Generate SOAP notes for a consultation.
+    
+    Fetches the consultation transcript, generates SOAP notes using AI,
+    analyzes for stigmatizing language, and saves the results to the database.
+    
+    Args:
+        consultation_id: ID of the consultation
+    
+    Returns:
+        Dictionary with generated SOAP notes and de-stigmatization suggestions
+    
+    Raises:
+        HTTPException: If consultation not found or generation fails
+    """
+    try:
+        # 1. Fetch the consultation transcript
+        logger.info(f"Fetching transcript for consultation {consultation_id}")
+        transcript = await db_client.get_transcript(consultation_id)
+        
+        if not transcript:
+            logger.error(f"Consultation {consultation_id} not found or has no transcript")
+            raise HTTPException(
+                status_code=404,
+                detail="Consultation not found"
+            )
+        
+        # 2. Generate SOAP notes with Compassion Reflex
+        logger.info(f"Generating SOAP notes for consultation {consultation_id}")
+        soap_note, stigma_suggestions = await generate_notes_with_empathy(transcript)
+        
+        # 3. Save to database
+        logger.info(f"Saving SOAP notes to database for consultation {consultation_id}")
+        try:
+            db_client.client.table("consultations")\
+                .update({
+                    "raw_soap_note": soap_note,
+                    "de_stigma_suggestions": stigma_suggestions,
+                    "soap_notes": soap_note,  # Also update old column for compatibility
+                    "stigma_suggestions": stigma_suggestions  # Also update old column
+                })\
+                .eq("id", consultation_id)\
+                .execute()
+            
+            logger.info(f"SOAP notes saved successfully for consultation {consultation_id}")
+        except Exception as db_error:
+            logger.error(f"Error saving SOAP notes to database: {db_error}")
+            # Continue anyway - we can still return the generated notes
+        
+        # 4. Return the generated notes
+        return {
+            "success": True,
+            "consultation_id": consultation_id,
+            "soap_note": soap_note,
+            "stigma_suggestions": stigma_suggestions,
+            "message": "SOAP notes generated successfully"
+        }
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except ValueError as ve:
+        logger.error(f"Validation error generating SOAP notes: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error generating SOAP notes: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate SOAP notes: {str(e)}"
+        )
+
+
+@app.get("/api/consultations/{consultation_id}/soap")
+async def get_soap_notes(consultation_id: str):
+    """
+    Get existing SOAP notes for a consultation.
+    
+    Args:
+        consultation_id: ID of the consultation
+    
+    Returns:
+        Dictionary with SOAP notes and suggestions
+    
+    Raises:
+        HTTPException: If consultation not found or no SOAP notes exist
+    """
+    try:
+        result = db_client.client.table("consultations")\
+            .select("raw_soap_note, de_stigma_suggestions, soap_notes, stigma_suggestions")\
+            .eq("id", consultation_id)\
+            .single()\
+            .execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        
+        # Try new column names first, fall back to old ones
+        soap_note = result.data.get("raw_soap_note") or result.data.get("soap_notes")
+        stigma_suggestions = result.data.get("de_stigma_suggestions") or result.data.get("stigma_suggestions") or []
+        
+        if not soap_note:
+            raise HTTPException(status_code=404, detail="No SOAP notes found for this consultation")
+        
+        return {
+            "success": True,
+            "consultation_id": consultation_id,
+            "soap_note": soap_note,
+            "stigma_suggestions": stigma_suggestions
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching SOAP notes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

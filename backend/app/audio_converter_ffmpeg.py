@@ -32,18 +32,46 @@ class AudioConverter:
         """
         Convert WebM/Opus to LINEAR16 PCM using FFmpeg.
         
+        Audio Format Conversion Process (Task 4.1, 4.2, 4.3):
+        
+        1. Validation:
+           - Check FFmpeg availability
+           - Validate input data size
+        
+        2. Conversion Pipeline:
+           - Write WebM data to temporary file
+           - Call FFmpeg with specific parameters:
+             * -ar 16000: Resample to 16kHz (required by Google Cloud STT)
+             * -ac 1: Convert to mono (single channel)
+             * -f s16le: Output format (signed 16-bit little-endian PCM)
+             * -acodec pcm_s16le: PCM codec
+           - Read converted PCM data from output file
+        
+        3. Verification:
+           - Check output size is non-zero
+           - Calculate estimated duration
+           - Validate conversion produced reasonable output
+        
+        4. Error Handling:
+           - Timeout after 10 seconds (prevents hanging)
+           - Log detailed error messages
+           - Clean up temporary files
+           - Return None on failure (allows fallback)
+        
         Args:
-            webm_data: Raw WebM audio bytes
-            target_sample_rate: Target sample rate (16000 for Google Cloud)
+            webm_data: Raw WebM audio bytes from MediaRecorder
+            target_sample_rate: Target sample rate in Hz (default: 16000 for speech recognition)
             
         Returns:
-            PCM audio bytes or None if conversion fails
+            LINEAR16 PCM audio bytes or None if conversion fails
         """
         # Check if FFmpeg is available
         if not AudioConverter.check_ffmpeg():
-            logger.error("FFmpeg not found - cannot convert audio")
-            logger.error("Please install FFmpeg: https://ffmpeg.org/download.html")
+            logger.error("❌ FFmpeg not found - cannot convert audio")
+            logger.error("   Please install FFmpeg: https://ffmpeg.org/download.html")
             return None
+        
+        logger.info(f"🔄 Starting audio conversion: {len(webm_data)} bytes -> PCM @ {target_sample_rate} Hz")
         
         try:
             # Create temporary files
@@ -54,6 +82,9 @@ class AudioConverter:
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as output_file:
                 output_path = output_file.name
             
+            logger.debug(f"   Input temp file: {input_path}")
+            logger.debug(f"   Output temp file: {output_path}")
+            
             try:
                 # Convert using FFmpeg
                 # -i input.webm: input file
@@ -61,7 +92,7 @@ class AudioConverter:
                 # -ac 1: convert to mono
                 # -f s16le: output format (signed 16-bit little-endian PCM)
                 # -acodec pcm_s16le: PCM codec
-                subprocess.run([
+                ffmpeg_cmd = [
                     'ffmpeg',
                     '-i', input_path,
                     '-ar', str(target_sample_rate),
@@ -71,13 +102,36 @@ class AudioConverter:
                     output_path,
                     '-y',  # Overwrite output file
                     '-loglevel', 'error'  # Only show errors
-                ], check=True, capture_output=True, timeout=10)
+                ]
+                
+                logger.debug(f"   FFmpeg command: {' '.join(ffmpeg_cmd)}")
+                
+                result = subprocess.run(
+                    ffmpeg_cmd,
+                    check=True,
+                    capture_output=True,
+                    timeout=10
+                )
                 
                 # Read converted audio
                 with open(output_path, 'rb') as f:
                     pcm_data = f.read()
                 
-                logger.debug(f"Converted {len(webm_data)} bytes WebM to {len(pcm_data)} bytes PCM")
+                if len(pcm_data) == 0:
+                    logger.error("❌ Conversion produced empty output")
+                    return None
+                
+                logger.info(f"✅ Conversion successful: {len(webm_data)} bytes -> {len(pcm_data)} bytes PCM")
+                logger.debug(f"   Sample rate: {target_sample_rate} Hz")
+                logger.debug(f"   Channels: 1 (mono)")
+                logger.debug(f"   Format: LINEAR16 PCM (signed 16-bit little-endian)")
+                
+                # Verify the conversion produced reasonable output
+                # For 16kHz mono 16-bit PCM: 1 second = 16000 samples * 2 bytes = 32000 bytes
+                expected_bytes_per_second = target_sample_rate * 2
+                duration_seconds = len(pcm_data) / expected_bytes_per_second
+                logger.debug(f"   Estimated duration: {duration_seconds:.2f} seconds")
+                
                 return pcm_data
                 
             finally:
@@ -85,17 +139,24 @@ class AudioConverter:
                 try:
                     os.unlink(input_path)
                     os.unlink(output_path)
-                except:
-                    pass
+                    logger.debug("   Cleaned up temporary files")
+                except Exception as cleanup_error:
+                    logger.warning(f"   Failed to clean up temp files: {cleanup_error}")
                     
         except subprocess.TimeoutExpired:
-            logger.error("FFmpeg conversion timed out")
+            logger.error("❌ FFmpeg conversion timed out (>10 seconds)")
+            logger.error("   Audio chunk may be too large or corrupted")
             return None
         except subprocess.CalledProcessError as e:
-            logger.error(f"FFmpeg conversion failed: {e.stderr.decode() if e.stderr else str(e)}")
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            logger.error(f"❌ FFmpeg conversion failed: {error_msg}")
+            logger.error(f"   Input size: {len(webm_data)} bytes")
+            logger.error(f"   Target sample rate: {target_sample_rate} Hz")
             return None
         except Exception as e:
-            logger.error(f"Audio conversion error: {e}")
+            logger.error(f"❌ Audio conversion error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
     
     @staticmethod

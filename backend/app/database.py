@@ -239,3 +239,163 @@ class DatabaseClient:
         except Exception as e:
             print(f"Error deleting user emotions: {e}")
             return False
+    
+    async def append_transcript(
+        self,
+        consultation_id: str,
+        transcript_entry: str
+    ) -> bool:
+        """
+        Append a transcript entry to a consultation.
+        
+        Args:
+            consultation_id: ID of the consultation
+            transcript_entry: Text to append to the transcript
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get current consultation
+            consultation = self.client.table("consultations")\
+                .select("*")\
+                .eq("id", consultation_id)\
+                .single()\
+                .execute()
+            
+            if not consultation.data:
+                print(f"Consultation {consultation_id} not found")
+                return False
+            
+            current_data = consultation.data
+            
+            # Get existing transcript (try both column names)
+            existing_transcript = (
+                current_data.get("transcript") or 
+                current_data.get("full_transcript") or 
+                ""
+            )
+            
+            # Append new entry with newline
+            new_transcript = existing_transcript + "\n" + transcript_entry if existing_transcript else transcript_entry
+            
+            # Update with both column names for compatibility
+            update_data = {
+                "transcript": new_transcript,
+                "full_transcript": new_transcript
+            }
+            
+            # Remove None values
+            update_data = {k: v for k, v in update_data.items() if v is not None}
+            
+            self.client.table("consultations")\
+                .update(update_data)\
+                .eq("id", consultation_id)\
+                .execute()
+            
+            return True
+        
+        except Exception as e:
+            print(f"Error appending transcript: {e}")
+            return False
+    
+    async def get_transcript(self, consultation_id: str) -> Optional[str]:
+        """
+        Get the full transcript for a consultation.
+        
+        Args:
+            consultation_id: ID of the consultation
+        
+        Returns:
+            Transcript text or None if not found
+        """
+        try:
+            result = self.client.table("consultations")\
+                .select("*")\
+                .eq("id", consultation_id)\
+                .single()\
+                .execute()
+            
+            if not result.data:
+                return None
+            
+            # Try both column names
+            return (
+                result.data.get("transcript") or 
+                result.data.get("full_transcript") or
+                None
+            )
+        
+        except Exception as e:
+            print(f"Error getting transcript: {e}")
+            return None
+    
+    async def save_soap_notes(
+        self,
+        consultation_id: str,
+        soap_note: Dict,
+        stigma_suggestions: List[Dict]
+    ) -> bool:
+        """
+        Save SOAP notes and stigma suggestions to a consultation.
+        
+        Args:
+            consultation_id: ID of the consultation
+            soap_note: Dictionary with SOAP note sections
+            stigma_suggestions: List of stigma suggestion dictionaries
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            self.client.table("consultations")\
+                .update({
+                    "raw_soap_note": soap_note,
+                    "de_stigma_suggestions": stigma_suggestions,
+                    "soap_notes": soap_note,  # Also update old column
+                    "stigma_suggestions": stigma_suggestions  # Also update old column
+                })\
+                .eq("id", consultation_id)\
+                .execute()
+            
+            return True
+        
+        except Exception as e:
+            print(f"Error saving SOAP notes: {e}")
+            return False
+    
+    async def get_soap_notes(self, consultation_id: str) -> Optional[Dict]:
+        """
+        Get SOAP notes for a consultation.
+        
+        Args:
+            consultation_id: ID of the consultation
+        
+        Returns:
+            Dictionary with soap_note and stigma_suggestions, or None if not found
+        """
+        try:
+            result = self.client.table("consultations")\
+                .select("raw_soap_note, de_stigma_suggestions, soap_notes, stigma_suggestions")\
+                .eq("id", consultation_id)\
+                .single()\
+                .execute()
+            
+            if not result.data:
+                return None
+            
+            # Try new column names first, fall back to old ones
+            soap_note = result.data.get("raw_soap_note") or result.data.get("soap_notes")
+            stigma_suggestions = result.data.get("de_stigma_suggestions") or result.data.get("stigma_suggestions") or []
+            
+            if not soap_note:
+                return None
+            
+            return {
+                "soap_note": soap_note,
+                "stigma_suggestions": stigma_suggestions
+            }
+        
+        except Exception as e:
+            print(f"Error getting SOAP notes: {e}")
+            return None

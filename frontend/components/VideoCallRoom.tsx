@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useImperativeHandle, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Spinner, LoadingOverlay } from '@/components/ui/spinner'
+import { Spinner } from '@/components/ui/spinner'
 import { useWebSocketWithRetry } from '@/lib/useWebSocketWithRetry'
 import { toast } from 'sonner'
 import { AlertCircle, Wifi, WifiOff, ArrowLeft } from 'lucide-react'
@@ -22,7 +22,14 @@ interface CaptionMessage {
   timestamp: number
 }
 
-export default function VideoCallRoom({ consultationId, userType }: VideoCallRoomProps) {
+export interface VideoCallRoomHandle {
+  getLocalStream: () => MediaStream | null
+}
+
+const VideoCallRoom = forwardRef<VideoCallRoomHandle, VideoCallRoomProps>(({ 
+  consultationId, 
+  userType 
+}, ref) => {
   const router = useRouter()
   
   // Video refs
@@ -33,14 +40,19 @@ export default function VideoCallRoom({ consultationId, userType }: VideoCallRoo
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    getLocalStream: () => localStreamRef.current
+  }))
+  
   // Media refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   
-  // State
-  const [isConnecting, setIsConnecting] = useState(true)
+  // State management
   const [error, setError] = useState<string | null>(null)
   const [captions, setCaptions] = useState<CaptionMessage[]>([])
   const [isCallActive, setIsCallActive] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(true)
   const [mediaError, setMediaError] = useState<string | null>(null)
   const [debugMode] = useState(process.env.NEXT_PUBLIC_DEBUG_MODE === 'true')
   
@@ -70,7 +82,7 @@ export default function VideoCallRoom({ consultationId, userType }: VideoCallRoo
     close: wsClose
   } = useWebSocketWithRetry({
     url: `${wsUrl}/ws/${consultationId}/${userType}`,
-    enabled: isCallActive && !debugMode, // Disable WebSocket in debug mode
+    enabled: isCallActive && !debugMode,
     maxRetries: 3,
     retryDelay: 2000,
     onMessage: (event) => {
@@ -120,7 +132,7 @@ export default function VideoCallRoom({ consultationId, userType }: VideoCallRoo
           throw new Error('Media devices not supported in this browser')
         }
 
-        // Request user media (video and audio)
+        // Request user media with specific audio constraints
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: 1280 },
@@ -282,18 +294,13 @@ export default function VideoCallRoom({ consultationId, userType }: VideoCallRoo
       // Create a new MediaStream with only audio
       const audioStream = new MediaStream([audioTrack])
 
-      // Create MediaRecorder to capture audio chunks
-      // Try OGG Opus first (better supported by Google Cloud), fallback to WebM
-      let mimeType = 'audio/ogg;codecs=opus'
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm;codecs=opus'
-      }
-      
-      console.log(`Using audio format: ${mimeType}`)
-      
+      // Use the standard and reliable WebM/Opus format for streaming.
+      const mimeType = 'audio/webm;codecs=opus';
+      console.log(`Using audio format: ${mimeType}`);
+
       const mediaRecorder = new MediaRecorder(audioStream, {
-        mimeType: mimeType
-      })
+        mimeType: mimeType,
+      });
       mediaRecorderRef.current = mediaRecorder
 
       // Stream audio chunks to backend at 1-second intervals
@@ -314,9 +321,8 @@ export default function VideoCallRoom({ consultationId, userType }: VideoCallRoo
         toast.success('Live translation active')
       }
 
-      // Start recording with 2-second timeslices for better STT accuracy
-      // Longer chunks give Google Cloud STT more context to work with
-      mediaRecorder.start(2000)
+      // Start recording with short timeslices for low-latency streaming.
+      mediaRecorder.start(500); // 500ms latency
 
     } catch (err) {
       console.error('Error starting audio streaming:', err)
@@ -540,4 +546,8 @@ export default function VideoCallRoom({ consultationId, userType }: VideoCallRoo
       </main>
     </div>
   )
-}
+})
+
+VideoCallRoom.displayName = 'VideoCallRoom'
+
+export default VideoCallRoom
