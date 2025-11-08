@@ -22,3 +22,9 @@ numpy>=1.24.3
 librosa==0.11.0
 soundfile==0.12.1
 pydub==0.25.1
+
+# Lab Report Analyzer dependencies
+PyPDF2==3.0.1
+pdfplumber==0.11.4
+google-cloud-vision==3.8.1
+python-multipart==0.0.9
