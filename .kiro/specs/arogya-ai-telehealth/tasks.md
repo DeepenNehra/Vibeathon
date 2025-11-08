@@ -3,11 +3,6 @@
 ## Task List
 
 - [x] 1. Initialize Next.js frontend project with dependencies
-
-
-
-
-
   - Create Next.js 14+ project with TypeScript and App Router
   - Install and configure Tailwind CSS
   - Set up shadcn/ui component library (Button, Textarea, Alert, Modal, Card, Input)
@@ -16,14 +11,7 @@
   - _Requirements: 1.1, 1.2_
 
 - [x] 2. Set up Supabase database schema
-
-
-
-
-
-
   - [x] 2.1 Create database migration script
-
     - Enable pgvector extension
     - Create patients table with columns: id, name, date_of_birth, preferred_language
     - Create consultations table with columns: id, patient_id, doctor_id, consultation_date, full_transcript, raw_soap_note, de_stigma_suggestions, approved
@@ -32,39 +20,26 @@
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
   - [x] 2.2 Implement Row Level Security policies
-
     - Create RLS policy for patients table (doctors see only their patients)
     - Create RLS policies for consultations table (doctors access only their consultations)
     - Create RLS policies for medical_lexicon table (all read, doctors insert)
     - _Requirements: 1.3, 9.5_
 
 - [x] 3. Implement authentication pages and middleware
-
-
-
-
-
   - [x] 3.1 Create sign-in/sign-up page
-
-
     - Build authentication form component with email/password fields
     - Implement Supabase Auth sign-in and sign-up handlers
     - Add form validation and error display
     - Redirect to dashboard on successful authentication
     - _Requirements: 1.1, 1.2_
+    
   - [x] 3.2 Create authentication middleware
-
-
     - Implement middleware to check session on protected routes
     - Redirect unauthenticated users to sign-in page
     - Handle session refresh automatically
     - _Requirements: 1.4, 1.5_
 
 - [x] 4. Build dashboard page
-
-
-
-
   - Create dashboard layout with navigation
   - Fetch and display list of upcoming consultations from Supabase
   - Implement "Start New Call" button that creates consultation record and navigates to room
@@ -72,14 +47,6 @@
   - _Requirements: 9.1, 9.2_
 
 - [x] 5. Build patient records page
-
-
-
-
-
-
-
-
   - Fetch and display list of patients for authenticated doctor
   - Implement patient search/filter functionality
   - Display consultation history for selected patient
@@ -87,6 +54,9 @@
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
 - [x] 6. Initialize FastAPI backend project
+<<<<<<< HEAD
+  - [x] 6.1 Create FastAPI project structure
+=======
 
 
 
@@ -95,11 +65,19 @@
 
   - [x] 6.1 Create FastAPI project structure
 
+>>>>>>> 8c02c68a975937490994437626cbdcc74e65ea28
     - Set up backend/ directory with app/ subdirectory
     - Create main.py with FastAPI app initialization
     - Configure CORS middleware for Next.js frontend
     - Create requirements.txt with dependencies (fastapi, uvicorn, websockets, supabase, google-cloud-speech, google-cloud-translate, google-generativeai, sentence-transformers, openai)
     - _Requirements: 3.2_
+<<<<<<< HEAD
+  - [x] 6.2 Create Pydantic models
+    - Define LexiconTerm, SoapNoteResponse, StigmaSuggestion, SoapGenerationResponse models
+    - Add validation rules for all fields
+    - _Requirements: 5.2, 6.3, 7.4_
+  - [x] 6.3 Implement database client module
+=======
 
   - [x] 6.2 Create Pydantic models
 
@@ -109,6 +87,7 @@
 
   - [x] 6.3 Implement database client module
 
+>>>>>>> 8c02c68a975937490994437626cbdcc74e65ea28
     - Create database.py with Supabase client initialization
     - Implement append_transcript method
     - Implement get_full_transcript method
@@ -118,10 +97,13 @@
     - _Requirements: 3.5, 5.4, 5.5, 6.5, 7.5, 10.5_
 
 - [x] 7. Implement WebSocket connection manager
+<<<<<<< HEAD
+=======
 
 
 
 
+>>>>>>> 8c02c68a975937490994437626cbdcc74e65ea28
   - Create connection_manager.py with ConnectionManager class
   - Implement connect method to track WebSocket connections per consultation
   - Implement disconnect method with cleanup

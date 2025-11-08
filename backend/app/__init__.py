@@ -2,4 +2,7 @@
 Arogya-AI Backend Application Package
 """
 
-__version__ = "1.0.0"
+from .alert_engine import AlertEngine, Alert
+
+__version__ = "2.0.0"
+__all__ = ["AlertEngine", "Alert"]
