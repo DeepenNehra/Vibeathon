@@ -1,217 +1,225 @@
-# Google Cloud Setup Guide
+# Google Cloud Speech-to-Text Setup Guide
 
-## What You Need
+## Step-by-Step Instructions to Get GOOGLE_APPLICATION_CREDENTIALS
 
-Google Cloud credentials are required for:
-- **Speech-to-Text** (converting audio to text)
-- **Translation API** (translating between languages)
-
-## Step-by-Step Setup
-
-### Step 1: Create Google Cloud Account
-
-1. Go to: https://console.cloud.google.com/
+### Step 1: Create a Google Cloud Account
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Sign in with your Google account
-3. Accept terms and conditions
-4. You get **$300 free credits** for 90 days
+3. Accept terms of service if prompted
+4. You'll get **$300 free credits** for 90 days (no credit card required initially)
 
 ### Step 2: Create a New Project
-
-1. Click the project dropdown at the top (says "Select a project")
-2. Click **"NEW PROJECT"**
-3. Enter project name: `arogya-ai-telehealth`
-4. Click **"CREATE"**
-5. Wait for project to be created (takes ~30 seconds)
+1. Click on the project dropdown at the top (next to "Google Cloud")
+2. Click **"New Project"**
+3. Enter project name: `arogya-ai-telehealth` (or any name you prefer)
+4. Click **"Create"**
+5. Wait for the project to be created (takes a few seconds)
 6. Select your new project from the dropdown
 
-### Step 3: Enable Required APIs
+### Step 3: Enable Speech-to-Text API
+1. In the search bar at the top, type: **"Speech-to-Text API"**
+2. Click on **"Cloud Speech-to-Text API"**
+3. Click the **"Enable"** button
+4. Wait for the API to be enabled (takes 10-30 seconds)
 
-1. Go to: https://console.cloud.google.com/apis/library
-2. Search for and enable these APIs:
-
-**Enable Speech-to-Text API:**
-- Search: "Cloud Speech-to-Text API"
-- Click on it
-- Click **"ENABLE"**
-- Wait for it to enable
-
-**Enable Translation API:**
-- Search: "Cloud Translation API"
-- Click on it
-- Click **"ENABLE"**
-- Wait for it to enable
-
-### Step 4: Create Service Account
-
-1. Go to: https://console.cloud.google.com/iam-admin/serviceaccounts
-2. Click **"+ CREATE SERVICE ACCOUNT"**
-3. Fill in details:
-   - **Service account name**: `arogya-ai-backend`
-   - **Service account ID**: (auto-filled)
-   - **Description**: `Backend service for Arogya-AI telehealth`
+### Step 4: Create a Service Account
+1. In the left sidebar, go to **"IAM & Admin"** → **"Service Accounts"**
+   - Or search for "Service Accounts" in the top search bar
+2. Click **"+ CREATE SERVICE ACCOUNT"** at the top
+3. Fill in the details:
+   - **Service account name**: `arogya-speech-service`
+   - **Service account ID**: (auto-generated, leave as is)
+   - **Description**: `Service account for Speech-to-Text API`
 4. Click **"CREATE AND CONTINUE"**
 
-5. **Grant permissions** (Step 2):
-   - Click "Select a role"
-   - Search and add: **"Cloud Speech Client"**
-   - Click "+ ADD ANOTHER ROLE"
-   - Search and add: **"Cloud Translation API User"**
-   - Click **"CONTINUE"**
+### Step 5: Grant Permissions
+1. In the "Grant this service account access to project" section:
+   - Click the **"Select a role"** dropdown
+   - Search for: **"Cloud Speech Client"**
+   - Select **"Cloud Speech Client"**
+   - Click **"+ ADD ANOTHER ROLE"**
+   - Search for: **"Cloud Speech Administrator"** (optional, for full access)
+   - Select it
+2. Click **"CONTINUE"**
+3. Click **"DONE"** (skip the optional "Grant users access" section)
 
-6. **Grant users access** (Step 3):
-   - Skip this step (click **"DONE"**)
-
-### Step 5: Create and Download Key
-
-1. Find your service account in the list
-2. Click on the **email** (looks like: arogya-ai-backend@...)
-3. Go to **"KEYS"** tab
+### Step 6: Create and Download JSON Key
+1. You'll see your service account in the list
+2. Click on the **email address** of your service account (e.g., `arogya-speech-service@...`)
+3. Go to the **"KEYS"** tab
 4. Click **"ADD KEY"** → **"Create new key"**
 5. Select **"JSON"** format
 6. Click **"CREATE"**
-7. A JSON file will download automatically
-8. **IMPORTANT**: Save this file securely!
+7. A JSON file will automatically download to your computer
+   - File name will be something like: `arogya-ai-telehealth-abc123def456.json`
+   - **IMPORTANT**: Keep this file secure! It contains credentials.
 
-### Step 6: Move Key File to Project
-
-1. Rename the downloaded file to: `google-credentials.json`
-2. Move it to your backend folder:
+### Step 7: Move the JSON File to Your Project
+1. Rename the downloaded file to something simple: `google-credentials.json`
+2. Move it to your backend directory:
    ```
-   backend/google-credentials.json
+   Vibeathon/backend/google-credentials.json
    ```
-3. **IMPORTANT**: Add to `.gitignore` so it's not committed to Git
+3. **IMPORTANT**: Add it to `.gitignore` to prevent committing credentials:
+   ```bash
+   # Add this line to backend/.gitignore
+   google-credentials.json
+   ```
 
-### Step 7: Update backend/.env
+### Step 8: Set Environment Variable
 
-Open `backend/.env` and update these lines:
-
-```env
-# Google Cloud Configuration
-GOOGLE_CLOUD_PROJECT_ID=arogya-ai-telehealth
-GOOGLE_APPLICATION_CREDENTIALS=google-credentials.json
-```
-
-Replace `arogya-ai-telehealth` with your actual project ID if different.
-
-### Step 8: Add to .gitignore
-
-Make sure `backend/.gitignore` includes:
-```
-google-credentials.json
-*.json
-.env
-```
-
-### Step 9: Restart Backend
-
+#### Option A: In `.env` file (Recommended for Development)
+Add this line to `backend/.env`:
 ```bash
-# Stop backend (Ctrl+C)
+GOOGLE_APPLICATION_CREDENTIALS=./google-credentials.json
+```
+
+Or use absolute path:
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=C:/Users/HP/Desktop/Vibethon-project/Vibeathon/backend/google-credentials.json
+```
+
+#### Option B: System Environment Variable (Windows)
+1. Open **System Properties** → **Environment Variables**
+2. Under "User variables", click **"New"**
+3. Variable name: `GOOGLE_APPLICATION_CREDENTIALS`
+4. Variable value: Full path to your JSON file
+   ```
+   C:\Users\HP\Desktop\Vibethon-project\Vibeathon\backend\google-credentials.json
+   ```
+5. Click **OK** and restart your terminal/IDE
+
+### Step 9: Verify Setup
+Test if credentials work by running this Python script:
+
+```python
+# test_google_credentials.py
+from google.cloud import speech_v1p1beta1 as speech
+import os
+
+try:
+    # This will use GOOGLE_APPLICATION_CREDENTIALS automatically
+    client = speech.SpeechClient()
+    print("✅ Google Cloud credentials are working!")
+    print(f"Credentials file: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
+except Exception as e:
+    print(f"❌ Error: {e}")
+```
+
+Run it:
+```bash
 cd backend
-venv\Scripts\activate
-python run.py
+python test_google_credentials.py
 ```
 
-You should see:
-```
-INFO: STT pipeline initialized successfully
-INFO: Uvicorn running on http://0.0.0.0:8000
-```
+## Alternative: Use Gemini API Only (Simpler Setup)
 
-## Verify Setup
+If you want to avoid Google Cloud setup complexity, you can modify the voice intake to use **only Gemini API** for both transcription and extraction:
 
-### Test 1: Check Health Endpoint
+### Get Gemini API Key (Much Simpler):
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Click **"Create API Key"**
+3. Copy the key
+4. Add to `backend/.env`:
+   ```bash
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
 
-Go to: http://localhost:8000/health
+### Modify voice_intake.py to use Gemini for transcription:
+I can help you modify the code to use Gemini's audio understanding capabilities instead of Speech-to-Text API if you prefer this simpler approach.
 
-Should show:
-```json
-{
-  "status": "healthy",
-  "dependencies": {
-    "database": "healthy",
-    "stt_pipeline": "healthy"
-  }
-}
-```
+## Pricing Information
 
-### Test 2: Try Video Call
+### Google Cloud Speech-to-Text:
+- **Free tier**: 60 minutes per month
+- **After free tier**: $0.006 per 15 seconds (~$1.44 per hour)
+- **Medical model**: $0.009 per 15 seconds (~$2.16 per hour)
 
-1. Go to http://localhost:3000
-2. Sign in
-3. Click "Start New Call"
-4. Allow camera/microphone
-5. WebSocket should connect successfully!
+### Gemini API:
+- **Free tier**: 15 requests per minute, 1500 per day
+- **Paid tier**: Very affordable, pay-as-you-go
 
 ## Troubleshooting
 
-### Error: "Could not load credentials"
-
-**Solution**: Check file path in `.env`
-```env
-# If file is in backend folder, use:
-GOOGLE_APPLICATION_CREDENTIALS=google-credentials.json
-
-# If file is elsewhere, use full path:
-GOOGLE_APPLICATION_CREDENTIALS=C:/path/to/google-credentials.json
-```
-
-### Error: "API not enabled"
-
-**Solution**: Make sure you enabled both APIs:
-- Cloud Speech-to-Text API
-- Cloud Translation API
-
-Go to: https://console.cloud.google.com/apis/dashboard
+### Error: "Could not automatically determine credentials"
+- Ensure `GOOGLE_APPLICATION_CREDENTIALS` is set correctly
+- Check the JSON file path is correct
+- Restart your terminal/IDE after setting environment variable
 
 ### Error: "Permission denied"
+- Make sure you granted "Cloud Speech Client" role to the service account
+- Wait a few minutes for permissions to propagate
 
-**Solution**: Check service account has correct roles:
-- Cloud Speech Client
-- Cloud Translation API User
+### Error: "API not enabled"
+- Go back to Google Cloud Console
+- Search for "Speech-to-Text API"
+- Make sure it's enabled for your project
 
 ### Error: "Quota exceeded"
-
-**Solution**: You're using free tier. Check quotas at:
-https://console.cloud.google.com/iam-admin/quotas
-
-Free tier limits:
-- Speech-to-Text: 60 minutes/month
-- Translation: 500,000 characters/month
-
-## Alternative: Use Mock Mode (For Testing Only)
-
-If you want to test without Google Cloud:
-
-1. Add to `backend/.env`:
-```env
-MOCK_MODE=true
-```
-
-2. This will skip real STT/translation but allow video call to work
-
-## Cost Information
-
-**Free Tier (First 90 days):**
-- $300 credit
-- More than enough for development
-
-**After Free Tier:**
-- Speech-to-Text: $0.006 per 15 seconds
-- Translation: $20 per 1M characters
-- Very affordable for testing
+- You've used up the free 60 minutes
+- Either wait for next month or enable billing
+- Consider using Gemini API as alternative
 
 ## Security Best Practices
 
-1. ✅ Never commit `google-credentials.json` to Git
-2. ✅ Add to `.gitignore`
-3. ✅ Don't share the JSON file
-4. ✅ Use service accounts (not personal credentials)
-5. ✅ Rotate keys periodically in production
+1. **Never commit credentials to Git**:
+   ```bash
+   # Add to .gitignore
+   google-credentials.json
+   *.json
+   !package.json
+   ```
+
+2. **Use environment variables** instead of hardcoding paths
+
+3. **Rotate keys periodically**:
+   - Delete old keys from Google Cloud Console
+   - Create new keys every few months
+
+4. **Restrict permissions**:
+   - Only grant "Cloud Speech Client" role
+   - Don't use "Owner" or "Editor" roles
+
+5. **For production**:
+   - Use Google Cloud Secret Manager
+   - Use Workload Identity (for GKE/Cloud Run)
+   - Never expose credentials in frontend
+
+## Quick Start Commands
+
+```bash
+# 1. Install required package
+pip install google-cloud-speech
+
+# 2. Set environment variable (Windows CMD)
+set GOOGLE_APPLICATION_CREDENTIALS=C:\path\to\google-credentials.json
+
+# 3. Set environment variable (Windows PowerShell)
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\google-credentials.json"
+
+# 4. Set environment variable (Linux/Mac)
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/google-credentials.json"
+
+# 5. Test it
+python test_google_credentials.py
+```
 
 ## Need Help?
 
-If you get stuck:
-1. Check Google Cloud Console for errors
-2. Look at backend terminal for detailed error messages
-3. Verify all APIs are enabled
-4. Make sure service account has correct permissions
+If you encounter any issues:
+1. Check the [Google Cloud Speech-to-Text Documentation](https://cloud.google.com/speech-to-text/docs)
+2. Verify your project has billing enabled (for usage beyond free tier)
+3. Check the [Troubleshooting Guide](https://cloud.google.com/speech-to-text/docs/troubleshooting)
+
+## Summary
+
+**Easiest Path:**
+1. Create Google Cloud account → Get $300 free credits
+2. Create project → Enable Speech-to-Text API
+3. Create service account → Download JSON key
+4. Move JSON to `backend/google-credentials.json`
+5. Add to `.env`: `GOOGLE_APPLICATION_CREDENTIALS=./google-credentials.json`
+6. Done! 🎉
+
+**Total time**: ~10 minutes
+**Cost**: Free (60 minutes/month, then $1-2 per hour)

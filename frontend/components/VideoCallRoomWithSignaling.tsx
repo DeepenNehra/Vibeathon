@@ -309,10 +309,15 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
         signalingWsRef.current = null
       }
       
-      const signalingWs = new WebSocket(`http://10.20.18.252:8000/ws/signaling/${consultationId}/${userType}`)
+      // Get backend URL from environment variable
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+      const wsUrl = backendUrl.replace(/^http/, 'ws')
+      const signalingUrl = `${wsUrl}/ws/signaling/${consultationId}/${userType}`
+      
+      const signalingWs = new WebSocket(signalingUrl)
       signalingWsRef.current = signalingWs
       
-      console.log(`🔌 Connecting to signaling server: $http://10.20.18.252:8000/ws/signaling/${consultationId}/${userType}`)
+      console.log(`🔌 Connecting to signaling server: ${signalingUrl}`)
       
       signalingWs.onopen = () => {
         console.log('✅ Signaling connected as', userType)

@@ -53,12 +53,17 @@ async def process_voice_intake(
         
         # Configure speech recognition with language support
         audio_config = speech.RecognitionAudio(content=audio_content)
+        
+        # Medical model only supports en-US, use default for all other languages
+        # Including en-IN, hi-IN, etc.
+        use_medical_model = (language_code == 'en-US')
+        
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
             sample_rate_hertz=48000,
             language_code=language_code,  # Hindi, English, etc.
             enable_automatic_punctuation=True,
-            model="medical_conversation",
+            model="medical_conversation" if use_medical_model else "default",
             use_enhanced=True
         )
         
@@ -162,9 +167,11 @@ async def save_intake_to_profile(
 ):
     """
     Save extracted intake data to patient profile
+    
+    This creates a voice_intake_records table entry instead of updating patients table
+    to avoid schema dependencies
     """
     try:
-        from .database import DatabaseClient
         from supabase import create_client
         
         supabase = create_client(
@@ -174,25 +181,54 @@ async def save_intake_to_profile(
         
         data = json.loads(intake_data)
         
-        # Update patient record
-        update_data = {
-            'voice_intake_completed': True,
-            'voice_intake_data': data,
-            'voice_intake_completed_at': datetime.now().isoformat(),
+        # Insert into voice_intake_records table (create if doesn't exist)
+        # This is safer than updating patients table which may not have these columns
+        intake_record = {
+            'patient_id': patient_id,
+            'intake_data': data,
+            'created_at': datetime.now().isoformat(),
+            'full_name': data.get('full_name'),
+            'age': data.get('age'),
             'chief_complaint': data.get('chief_complaint'),
+            'symptom_duration': data.get('symptom_duration'),
             'medical_history': data.get('medical_history'),
             'current_medications': data.get('current_medications'),
-            'allergies': data.get('allergies')
+            'allergies': data.get('allergies'),
+            'language_code': data.get('audio_language_code', 'unknown')
         }
         
-        result = supabase.table('patients').update(update_data).eq('user_id', patient_id).execute()
+        # Try to insert into voice_intake_records table
+        try:
+            print(f"🔄 Attempting to save voice intake for patient: {patient_id}")
+            print(f"📊 Data to save: {intake_record}")
+            
+            result = supabase.table('voice_intake_records').insert(intake_record).execute()
+            
+            print(f"✅ Successfully saved to database!")
+            print(f"📊 Result: {result.data}")
+            
+            return {
+                "success": True,
+                "message": "Voice intake data saved successfully",
+                "data": result.data,
+                "saved_to": "voice_intake_records"
+            }
+        except Exception as table_error:
+            # If table doesn't exist or save fails, log detailed error
+            print(f"❌ ERROR saving to database: {table_error}")
+            print(f"❌ Error type: {type(table_error).__name__}")
+            print(f"❌ Error details: {str(table_error)}")
+            print("⚠️  Data was successfully extracted but NOT persisted to database")
+            print("⚠️  Please create voice_intake_records table in Supabase")
+            
+            # Return error so frontend knows it didn't save
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to save to database: {str(table_error)}. Please create voice_intake_records table in Supabase."
+            )
         
-        return {
-            "success": True,
-            "message": "Intake data saved to profile",
-            "data": result.data
-        }
-        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON data: {str(e)}")
     except Exception as e:
         print(f"Error saving intake: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

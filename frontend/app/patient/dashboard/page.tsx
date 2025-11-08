@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LogoutButton } from '@/components/dashboard/logout-button'
 import { AnimatedLogo } from '@/components/ui/animated-logo'
-import { Calendar, FileText, Video, Heart, Clock, Loader2 } from 'lucide-react'
+import { Calendar, FileText, Video, Heart, Clock, Loader2, Mic } from 'lucide-react'
 
 // Extract patient name from email
 function extractPatientName(email: string): string {
@@ -119,6 +119,12 @@ export default function PatientDashboard() {
                   Dashboard
                 </Link>
                 <Link 
+                  href="/patient/voice-intake" 
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Voice Intake
+                </Link>
+                <Link 
                   href="/patient/appointments" 
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
                 >
@@ -129,12 +135,6 @@ export default function PatientDashboard() {
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
                 >
                   AI Image Analysis
-                </Link>
-                <Link 
-                  href="/patient/records" 
-                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Medical Records
                 </Link>
               </nav>
             </div>
@@ -261,28 +261,28 @@ export default function PatientDashboard() {
             </Card>
           </Link>
 
-          <Card className="border-teal-200/50 dark:border-teal-800/50 hover:shadow-xl transition-all duration-300 group relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardHeader className="relative">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-lg blur-md opacity-50 group-hover:opacity-75 transition-opacity" />
-                  <div className="relative bg-gradient-to-br from-teal-500 to-cyan-600 p-2 rounded-lg">
-                    <FileText className="w-5 h-5 text-white" />
+          <Link href="/patient/voice-intake">
+            <Card className="border-teal-200/50 dark:border-teal-800/50 hover:shadow-xl transition-all duration-300 group relative overflow-hidden cursor-pointer">
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="relative">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-lg blur-md opacity-50 group-hover:opacity-75 transition-opacity" />
+                    <div className="relative bg-gradient-to-br from-teal-500 to-cyan-600 p-2 rounded-lg">
+                      <Mic className="w-5 h-5 text-white" />
+                    </div>
                   </div>
+                  <CardTitle className="text-lg">Voice Intake</CardTitle>
                 </div>
-                <CardTitle className="text-lg">My Records</CardTitle>
-              </div>
-              <CardDescription>View your medical history</CardDescription>
-            </CardHeader>
-            <CardContent className="relative">
-              <Link href="/patient/records">
-                <Button variant="outline" className="w-full border-teal-300 dark:border-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/30">
-                  View Records
+                <CardDescription>Speak your medical history</CardDescription>
+              </CardHeader>
+              <CardContent className="relative">
+                <Button className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white">
+                  Start Recording
                 </Button>
-              </Link>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Upcoming Appointments */}
