@@ -24,6 +24,8 @@ from app.appointment_models import (
     AppointmentStatus,
     TimeSlot
 )
+from app.summarizer import generate_notes_with_empathy
+from app.models import SoapGenerationResponse
 
 logger = logging.getLogger(__name__)
 
@@ -457,3 +459,109 @@ async def mark_slot_as_available(
             
     except Exception as e:
         logger.error(f"Error marking slot as available: {e}")
+
+
+@router.post("/consultations/{consultation_id}/generate_soap", response_model=SoapGenerationResponse)
+async def generate_soap_notes(
+    consultation_id: str,
+    db: Client = Depends(get_supabase)
+):
+    """
+    Generate SOAP notes from consultation transcript
+    
+    This endpoint:
+    1. Fetches the consultation transcript from the database
+    2. Generates SOAP notes using AI (Gemini API)
+    3. Analyzes for stigmatizing language (Compassion Reflex)
+    4. Saves the SOAP notes and suggestions to the database
+    
+    Args:
+        consultation_id: ID of the consultation
+        
+    Returns:
+        SoapGenerationResponse with generated SOAP notes and suggestions
+    """
+    try:
+        logger.info(f"Generating SOAP notes for consultation: {consultation_id}")
+        
+        # Step 1: Fetch consultation and transcript
+        # Try to fetch all possible transcript field names
+        consultation_result = db.table("consultations").select("*").eq("id", consultation_id).execute()
+        
+        if not consultation_result.data:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        
+        consultation = consultation_result.data[0]
+        
+        # Log available columns for debugging
+        available_columns = list(consultation.keys())
+        logger.info(f"Available columns in consultation: {available_columns}")
+        
+        # Try different possible column names for transcript
+        transcript = (
+            consultation.get("transcript") or 
+            consultation.get("full_transcript") or
+            consultation.get("transcript_text") or
+            None
+        )
+        
+        if not transcript or not transcript.strip():
+            # Check if consultation exists but has no transcript column
+            if "transcript" not in available_columns and "full_transcript" not in available_columns:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Transcript column not found in database. Available columns: {available_columns}. Please run migration 003_add_transcript_column.sql to add the transcript column."
+                )
+            
+            raise HTTPException(
+                status_code=400,
+                detail="Consultation transcript is empty. Cannot generate SOAP notes without a transcript. Please ensure the consultation has a transcript (from captions/audio processing) before generating SOAP notes."
+            )
+        
+        logger.info(f"Found transcript with {len(transcript)} characters")
+        
+        # Step 2: Generate SOAP notes with empathy suggestions
+        try:
+            raw_soap_note, de_stigma_suggestions = await generate_notes_with_empathy(transcript)
+            logger.info(f"Generated SOAP note with {len(de_stigma_suggestions)} suggestions")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Error generating SOAP notes: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate SOAP notes: {str(e)}"
+            )
+        
+        # Step 3: Save SOAP notes to database
+        # Database schema uses 'soap_notes' and 'stigma_suggestions'
+        # Frontend expects 'raw_soap_note' and 'de_stigma_suggestions'
+        # We'll save to both for compatibility (database columns will be added if needed)
+        update_data = {
+            "soap_notes": raw_soap_note,
+            "raw_soap_note": raw_soap_note,  # For frontend compatibility
+            "stigma_suggestions": de_stigma_suggestions,
+            "de_stigma_suggestions": de_stigma_suggestions  # For frontend compatibility
+        }
+        
+        update_result = db.table("consultations").update(update_data).eq(
+            "id", consultation_id
+        ).execute()
+        
+        if not update_result.data:
+            raise HTTPException(status_code=500, detail="Failed to save SOAP notes to database")
+        
+        logger.info(f"Successfully saved SOAP notes for consultation: {consultation_id}")
+        
+        # Step 4: Return response
+        return SoapGenerationResponse(
+            raw_soap_note=raw_soap_note,
+            de_stigma_suggestions=de_stigma_suggestions,
+            consultation_id=consultation_id
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating SOAP notes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { AlertCircle, CheckCircle, Lightbulb, RefreshCw, ArrowLeft } from 'lucide-react'
+import { AlertCircle, CheckCircle, Lightbulb, RefreshCw, ArrowLeft, FileText } from 'lucide-react'
 import { LoadingOverlay } from '@/components/ui/spinner'
 import { toast } from 'sonner'
 
@@ -62,6 +62,7 @@ export default function SoapNoteReview({ consultationId }: SoapNoteReviewProps) 
   // UI state
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   
@@ -98,14 +99,17 @@ export default function SoapNoteReview({ consultationId }: SoapNoteReviewProps) 
         // Parse and set SOAP note
         if (data.raw_soap_note) {
           setSoapNote(data.raw_soap_note as SoapNote)
-        } else {
-          toast.warning('No SOAP note found. It may not have been generated yet.')
+        }
+        
+        // Parse and set de-stigmatization suggestions
+        if (data.de_stigma_suggestions) {
+          if (Array.isArray(data.de_stigma_suggestions)) {
+            setSuggestions(data.de_stigma_suggestions as StigmaSuggestion[])
+          } else if (data.de_stigma_suggestions.suggestions) {
+            setSuggestions(data.de_stigma_suggestions.suggestions as StigmaSuggestion[])
+          }
         }
 
-        // Parse and set de-stigmatization suggestions
-        if (data.de_stigma_suggestions && data.de_stigma_suggestions.suggestions) {
-          setSuggestions(data.de_stigma_suggestions.suggestions as StigmaSuggestion[])
-        }
 
       } catch (err) {
         console.error('Error fetching SOAP note:', err)
@@ -119,6 +123,49 @@ export default function SoapNoteReview({ consultationId }: SoapNoteReviewProps) 
 
     fetchSoapNote()
   }, [consultationId])
+
+  // Generate SOAP notes function
+  const generateSoapNotes = async () => {
+    try {
+      setIsGenerating(true)
+      setError(null)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+      
+      const response = await fetch(`${backendUrl}/api/consultations/${consultationId}/generate_soap`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to generate SOAP notes' }))
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Update local state with generated notes
+      if (data.raw_soap_note) {
+        setSoapNote(data.raw_soap_note)
+      }
+      if (data.de_stigma_suggestions) {
+        setSuggestions(Array.isArray(data.de_stigma_suggestions) 
+          ? data.de_stigma_suggestions 
+          : data.de_stigma_suggestions.suggestions || [])
+      }
+      
+      toast.success('SOAP notes generated successfully!')
+    } catch (error) {
+      console.error('Error generating SOAP notes:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate SOAP notes'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setIsGenerating(false)
+      setIsLoading(false)
+    }
+  }
 
   // Handle SOAP note section updates
   const handleSectionChange = (section: keyof SoapNote, value: string) => {
@@ -238,6 +285,50 @@ export default function SoapNoteReview({ consultationId }: SoapNoteReviewProps) 
     )
   }
 
+  // Show generate button if no SOAP note exists
+  if (!soapNote.subjective && !soapNote.objective && !isLoading && !error) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <FileText className="h-8 w-8 text-primary" />
+              <CardTitle>No SOAP Note Found</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              SOAP notes have not been generated for this consultation yet. 
+              Click the button below to generate them from the consultation transcript.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                onClick={generateSoapNotes} 
+                disabled={isGenerating}
+                className="gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Generate SOAP Notes
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" onClick={() => router.back()}>
+                Back
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   if (error && !soapNote.subjective && !soapNote.objective) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-6">
@@ -251,6 +342,19 @@ export default function SoapNoteReview({ consultationId }: SoapNoteReviewProps) 
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">{error}</p>
             <div className="flex gap-3">
+              <Button onClick={generateSoapNotes} disabled={isGenerating} className="gap-2">
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Generate SOAP Notes
+                  </>
+                )}
+              </Button>
               <Button onClick={handleRetry} className="gap-2">
                 <RefreshCw className="h-4 w-4" />
                 Retry

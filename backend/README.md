@@ -225,7 +225,37 @@ Once running, visit:
 
 ## Environment Variables
 
+### Quick Reference
+
 See `.env.example` for required configuration.
+
+### Live Captions Setup
+
+For detailed information about setting up environment variables for the live captions feature, see:
+
+**[CAPTIONS_ENV_SETUP.md](./CAPTIONS_ENV_SETUP.md)** - Comprehensive guide covering:
+- Google Cloud credentials setup
+- OpenAI API key configuration (optional fallback)
+- API quota limits and pricing
+- Setup instructions for new developers
+- Troubleshooting common issues
+- Security best practices
+- Production deployment checklist
+
+### Required for Live Captions
+
+```bash
+# Google Cloud Credentials (REQUIRED)
+GOOGLE_APPLICATION_CREDENTIALS=./google-credentials.json
+
+# OpenAI API Key (OPTIONAL - Fallback ASR)
+OPENAI_API_KEY=sk-proj-...your_key_here
+
+# Database Connection (OPTIONAL - For transcript storage)
+DATABASE_URL=postgresql://user:password@host:port/database
+```
+
+For complete setup instructions, see [CAPTIONS_ENV_SETUP.md](./CAPTIONS_ENV_SETUP.md).
 
 ## Project Structure
 

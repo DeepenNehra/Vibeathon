@@ -43,6 +43,7 @@ class AudioConverter:
         
         try:
             # Load WebM audio using pydub
+            # Note: pydub requires FFmpeg to be installed for WebM support
             audio = AudioSegment.from_file(io.BytesIO(webm_data), format="webm")
             
             # Convert to mono
@@ -59,11 +60,17 @@ class AudioConverter:
             # Get raw PCM data
             pcm_bytes = audio.raw_data
             
-            logger.debug(f"Converted {len(webm_data)} bytes WebM to {len(pcm_bytes)} bytes PCM")
+            logger.info(f"✅ Converted {len(webm_data)} bytes WebM to {len(pcm_bytes)} bytes PCM ({target_sample_rate}Hz)")
             return pcm_bytes
             
+        except FileNotFoundError as e:
+            logger.error(f"❌ FFmpeg not found. pydub requires FFmpeg for WebM conversion.")
+            logger.error(f"   Install FFmpeg: https://ffmpeg.org/download.html")
+            logger.error(f"   Or use audio_converter_ffmpeg.py which checks for FFmpeg availability")
+            return None
         except Exception as e:
-            logger.error(f"Audio conversion error: {e}")
+            logger.error(f"❌ Audio conversion error: {e}")
+            logger.error(f"   This might be due to missing FFmpeg or unsupported audio format")
             return None
     
     @staticmethod

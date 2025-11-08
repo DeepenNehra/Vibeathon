@@ -15,15 +15,60 @@ import json
 from .alert_engine import AlertEngine, Alert
 from .emotion_analyzer import EmotionAnalyzer, EmotionResult
 from .database import DatabaseClient
-from .stt_pipeline import get_stt_pipeline
+from .stt_pipeline import get_stt_pipeline, validate_stt_configuration
 from .audio_converter_ffmpeg import get_audio_converter
 from .appointments import router as appointments_router
 from .lab_reports import router as lab_reports_router
 from .medical_images import router as medical_images_router
 from .signaling import router as signaling_router
 from .health_tips import router as health_tips_router
+from .captions import router as captions_router
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arogya-AI Medical Intelligence API")
+
+# Startup event to validate configuration
+@app.on_event("startup")
+async def startup_validation():
+    """Validate STT pipeline configuration at startup."""
+    logger.info("=" * 80)
+    logger.info("🚀 Starting Arogya-AI Medical Intelligence API")
+    logger.info("=" * 80)
+    
+    # Validate STT configuration
+    logger.info("🔍 Validating STT Pipeline Configuration...")
+    validation_result = validate_stt_configuration()
+    
+    logger.info("\n📊 Configuration Status:")
+    logger.info(f"   Google Cloud Libraries: {'✅ Available' if validation_result['google_cloud_available'] else '❌ Not Available'}")
+    logger.info(f"   Google Cloud Credentials: {'✅ Valid' if validation_result['google_credentials_valid'] else '❌ Invalid'}")
+    logger.info(f"   Google Speech-to-Text: {'✅ Ready' if validation_result['google_speech_client'] else '❌ Not Available'}")
+    logger.info(f"   Google Translation: {'✅ Ready' if validation_result['google_translate_client'] else '❌ Not Available'}")
+    logger.info(f"   OpenAI Whisper (Fallback): {'✅ Ready' if validation_result['openai_client'] else '❌ Not Available'}")
+    
+    # Log warnings
+    if validation_result['warnings']:
+        logger.info("\n⚠️  Warnings:")
+        for warning in validation_result['warnings']:
+            logger.warning(f"   - {warning}")
+    
+    # Log errors
+    if validation_result['errors']:
+        logger.info("\n❌ Errors:")
+        for error in validation_result['errors']:
+            logger.error(f"   - {error}")
+        logger.error("\n⚠️  Live captions may not work properly without a valid ASR service!")
+    else:
+        logger.info("\n✅ All critical services initialized successfully")
+    
+    logger.info("=" * 80)
 
 # Include appointment routes
 app.include_router(appointments_router)
@@ -36,6 +81,8 @@ app.include_router(medical_images_router)
 app.include_router(signaling_router)
 # Include health tips routes
 app.include_router(health_tips_router)
+# Include captions routes for live transcription
+app.include_router(captions_router)
 
 # Enable CORS for frontend integration
 app.add_middleware(

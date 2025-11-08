@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Video, VideoOff, Mic, MicOff, PhoneOff, ArrowLeft } from 'lucide-react'
+import { Video, VideoOff, Mic, MicOff, PhoneOff, ArrowLeft, Subtitles, FileText, RefreshCw } from 'lucide-react'
+import LiveCaptions from './LiveCaptions'
 
 interface VideoCallRoomProps {
   consultationId: string
@@ -27,47 +28,52 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]) // Queue ICE candidates if WS not ready
   const isInitializedRef = useRef(false) // Prevent double initialization in React Strict Mode
   const cleanupDoneRef = useRef(false) // Track if cleanup has been done
-  const isInitializingRef = useRef(false) // Prevent concurrent initialization
   
   // State
   const [isVideoOn, setIsVideoOn] = useState(true)
   const [isAudioOn, setIsAudioOn] = useState(true)
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(true)
-  const [hasRemoteStream, setHasRemoteStream] = useState(false) // Track if remote stream is available
+  const [captionsEnabled, setCaptionsEnabled] = useState(false)
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const [cameraAvailable, setCameraAvailable] = useState<boolean | null>(null)
   
-  // const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
-  // const wsUrl = backendUrl.replace('http', 'ws')
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+  const wsUrl = backendUrl.replace('http', 'ws')
+
+  // Check camera availability
+  const checkCameraAvailability = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const cameras = devices.filter(device => device.kind === 'videoinput')
+      setCameraAvailable(cameras.length > 0)
+      return cameras.length > 0
+    } catch (err) {
+      console.error('Error checking camera availability:', err)
+      setCameraAvailable(false)
+      return false
+    }
+  }
 
   useEffect(() => {
-    let mounted = true
-    
+    // Check camera on mount
+    checkCameraAvailability()
+  }, [])
+
+  useEffect(() => {
     // Prevent double initialization in React Strict Mode
     if (isInitializedRef.current) {
       console.log('⚠️ Already initialized, skipping...')
-      return () => {
-        // Cleanup on unmount
-        if (mounted && !cleanupDoneRef.current) {
-          console.log('🧹 Cleaning up (unmount)...')
-          cleanup()
-        }
-      }
+      return
     }
     
     isInitializedRef.current = true
     cleanupDoneRef.current = false
     console.log('🚀 Initializing video call...')
-    
-    // Use a small delay to ensure component is fully mounted
-    const initTimer = setTimeout(() => {
-      if (mounted) {
-        initializeCall()
-      }
-    }, 100)
+    initializeCall()
     
     return () => {
-      mounted = false
-      clearTimeout(initTimer)
       if (!cleanupDoneRef.current) {
         console.log('🧹 Cleaning up...')
         cleanup()
@@ -75,59 +81,124 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
         isInitializedRef.current = false
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consultationId, userType])
 
   const initializeCall = async () => {
-    // Prevent concurrent initializations
-    if (isInitializingRef.current) {
-      console.log('⚠️ Already initializing, skipping...')
-      return
-    }
-    
     // Prevent multiple initializations
     if (signalingWsRef.current?.readyState === WebSocket.OPEN) {
       console.log('⚠️ WebSocket already connected, skipping initialization')
       return
     }
     
-    isInitializingRef.current = true
-    
     // Clean up any existing connections first
     if (signalingWsRef.current) {
       console.log('🧹 Cleaning up existing WebSocket connection')
-      try {
-        signalingWsRef.current.close()
-      } catch (e) {
-        console.error('Error closing WebSocket:', e)
-      }
+      signalingWsRef.current.close()
       signalingWsRef.current = null
     }
     
     if (peerConnectionRef.current) {
       console.log('🧹 Cleaning up existing peer connection')
-      try {
-        peerConnectionRef.current.close()
-      } catch (e) {
-        console.error('Error closing peer connection:', e)
-      }
+      peerConnectionRef.current.close()
       peerConnectionRef.current = null
     }
     
     try {
-      // 1. Get local media
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      })
+      // 1. Get local media with better error handling
+      let stream: MediaStream
+      
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        })
+      } catch (mediaError: any) {
+        // Handle specific media errors
+        let errorMessage = 'Failed to access camera/microphone'
+        
+        if (mediaError.name === 'NotAllowedError' || mediaError.name === 'PermissionDeniedError') {
+          errorMessage = 'Camera/microphone access denied. Please grant permissions in your browser settings and refresh the page.'
+          toast.error(errorMessage, { duration: 5000 })
+        } else if (mediaError.name === 'NotFoundError' || mediaError.name === 'DevicesNotFoundError') {
+          errorMessage = 'No camera or microphone found. Please connect a device and refresh the page.'
+          toast.error(errorMessage, { duration: 5000 })
+        } else if (mediaError.name === 'NotReadableError' || mediaError.name === 'TrackStartError') {
+          errorMessage = 'Camera/microphone is already in use by another application. Please close other apps using the camera and try again.'
+          setMediaError(errorMessage)
+          toast.error(errorMessage, { duration: 8000 })
+        } else if (mediaError.name === 'OverconstrainedError') {
+          errorMessage = 'Camera does not support the requested settings. Trying with default settings...'
+          toast.warning(errorMessage)
+          // Retry with simpler constraints
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: true
+            })
+          } catch (retryError: any) {
+            console.error('Retry also failed:', retryError)
+            throw retryError
+          }
+        } else {
+          errorMessage = `Media access error: ${mediaError.message || mediaError.name}`
+          toast.error(errorMessage, { duration: 5000 })
+        }
+        
+        console.error('❌ Media access error:', {
+          name: mediaError.name,
+          message: mediaError.message,
+          constraint: mediaError.constraint
+        })
+        
+        setIsConnecting(false)
+        setMediaError(errorMessage)
+        throw mediaError
+      }
       
       localStreamRef.current = stream
+      setLocalStream(stream) // Update state for LiveCaptions component
+      setMediaError(null) // Clear any previous errors
       
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream
-        // Ensure local video plays
-        localVideoRef.current.play().catch(err => {
-          console.error('Error playing local video:', err)
-        })
+        // Only set srcObject if it's different to avoid interrupting playback
+        if (localVideoRef.current.srcObject !== stream) {
+          localVideoRef.current.srcObject = stream
+        }
+        
+        // Ensure local video plays with proper error handling
+        const playPromise = localVideoRef.current.play()
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('✅ Local video playing')
+            })
+            .catch(err => {
+              // AbortError is usually harmless - it means play() was interrupted
+              // This can happen during React re-renders or when srcObject changes
+              if (err.name === 'AbortError') {
+                console.log('ℹ️ Video play() was interrupted (this is usually harmless)')
+                // Try playing again after a short delay
+                setTimeout(() => {
+                  if (localVideoRef.current && localVideoRef.current.srcObject === stream) {
+                    localVideoRef.current.play().catch(() => {
+                      // Ignore errors on retry
+                    })
+                  }
+                }, 100)
+              } else {
+                console.error('Error playing local video:', err)
+              }
+            })
+        }
       }
       
       console.log('✅ Local media obtained', {
@@ -155,59 +226,61 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
         console.log('📹 Received remote track', {
           streams: event.streams.length,
           track: event.track.kind,
-          id: event.track.id,
-          enabled: event.track.enabled
+          id: event.track.id
         })
-        
-        if (event.streams && event.streams.length > 0) {
+        if (event.streams[0]) {
           const remoteStream = event.streams[0]
-          console.log('✅ Remote stream received:', {
-            videoTracks: remoteStream.getVideoTracks().length,
-            audioTracks: remoteStream.getAudioTracks().length,
-            active: remoteStream.active
-          })
-          
-          // Update state to show remote video
-          setHasRemoteStream(true)
           
           // Wait for video element to be ready
           const setRemoteVideo = () => {
             if (remoteVideoRef.current) {
-              // Check if we already have this stream
+              // Only set srcObject if it's different to avoid interrupting playback
               if (remoteVideoRef.current.srcObject !== remoteStream) {
-                console.log('🎥 Setting remote video stream')
                 remoteVideoRef.current.srcObject = remoteStream
               }
               
-              // CRITICAL: Ensure remote video plays
-              remoteVideoRef.current.play()
-                .then(() => {
-                  console.log('✅ Remote video playing successfully')
-                  setIsConnected(true)
-                  setIsConnecting(false)
-                  toast.success('Connected to peer!')
-                })
-                .catch(err => {
-                  console.error('❌ Error playing remote video:', err)
-                  // Retry playing
-                  setTimeout(() => {
-                    if (remoteVideoRef.current) {
-                      remoteVideoRef.current.play().catch(e => {
-                        console.error('❌ Retry play failed:', e)
-                      })
+              // CRITICAL: Ensure remote video plays with proper error handling
+              const playPromise = remoteVideoRef.current.play()
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    console.log('✅ Remote video playing')
+                    setIsConnected(true)
+                    toast.success('Connected to peer!')
+                  })
+                  .catch(err => {
+                    // AbortError is usually harmless - it means play() was interrupted
+                    if (err.name === 'AbortError') {
+                      console.log('ℹ️ Remote video play() was interrupted (this is usually harmless)')
+                      // Try playing again after a short delay
+                      setTimeout(() => {
+                        if (remoteVideoRef.current && remoteVideoRef.current.srcObject === remoteStream) {
+                          remoteVideoRef.current.play()
+                            .then(() => {
+                              console.log('✅ Remote video playing after retry')
+                              setIsConnected(true)
+                            })
+                            .catch(() => {
+                              // Ignore errors on retry
+                            })
+                        }
+                      }, 100)
+                    } else {
+                      console.error('❌ Error playing remote video:', err)
+                      // Only show error toast for non-AbortError cases
+                      if (err.name !== 'NotAllowedError') {
+                        toast.error('Failed to play remote video')
+                      }
                     }
-                  }, 500)
-                })
+                  })
+              }
             } else {
               // Retry if video element not ready yet
-              console.log('⏳ Video element not ready, retrying...')
               setTimeout(setRemoteVideo, 100)
             }
           }
           
           setRemoteVideo()
-        } else {
-          console.warn('⚠️ Received track event but no streams available')
         }
       }
       
@@ -309,10 +382,33 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
         signalingWsRef.current = null
       }
       
-      const signalingWs = new WebSocket(`http://10.20.18.252:8000/ws/signaling/${consultationId}/${userType}`)
-      signalingWsRef.current = signalingWs
+      // Construct WebSocket URL
+      const wsSignalingUrl = `${wsUrl}/ws/signaling/${consultationId}/${userType}`
+      console.log(`🔌 Connecting to signaling server: ${wsSignalingUrl}`)
       
-      console.log(`🔌 Connecting to signaling server: $http://10.20.18.252:8000/ws/signaling/${consultationId}/${userType}`)
+      // Validate WebSocket URL
+      if (!wsUrl || wsUrl === 'ws://undefined' || wsUrl === 'wss://undefined') {
+        const errorMsg = `Invalid WebSocket URL: ${wsUrl}. Check NEXT_PUBLIC_BACKEND_URL environment variable.`
+        console.error('❌', errorMsg)
+        toast.error('Configuration error: Backend URL not set')
+        setIsConnecting(false)
+        return
+      }
+      
+      let signalingWs: WebSocket
+      try {
+        signalingWs = new WebSocket(wsSignalingUrl)
+        signalingWsRef.current = signalingWs
+      } catch (err) {
+        const errorMsg = `Failed to create WebSocket connection: ${err instanceof Error ? err.message : String(err)}`
+        console.error('❌', errorMsg)
+        toast.error('Failed to connect to signaling server')
+        setIsConnecting(false)
+        return
+      }
+      
+      // Store URL for error handling
+      const wsUrlForError = wsSignalingUrl
       
       signalingWs.onopen = () => {
         console.log('✅ Signaling connected as', userType)
@@ -404,47 +500,66 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
       }
       
       signalingWs.onerror = (error) => {
-        console.error('❌ Signaling error:', error)
-        toast.error('Signaling connection error')
+        // WebSocket error events don't always have detailed error info
+        const errorDetails = {
+          readyState: signalingWs.readyState,
+          url: wsUrlForError,
+          readyStateText: signalingWs.readyState === WebSocket.CONNECTING ? 'CONNECTING' :
+                         signalingWs.readyState === WebSocket.OPEN ? 'OPEN' :
+                         signalingWs.readyState === WebSocket.CLOSING ? 'CLOSING' :
+                         signalingWs.readyState === WebSocket.CLOSED ? 'CLOSED' : 'UNKNOWN'
+        }
+        console.error('❌ Signaling WebSocket error:', errorDetails)
+        
+        // Provide more helpful error message
+        if (signalingWs.readyState === WebSocket.CLOSED) {
+          toast.error('Signaling server connection failed. Check if backend is running.')
+        } else {
+          toast.error('Signaling connection error. Please refresh the page.')
+        }
+        
+        setIsConnecting(false)
       }
       
       signalingWs.onclose = (event) => {
-        console.log('🔌 Signaling disconnected', {
+        const closeDetails = {
           code: event.code,
-          reason: event.reason,
+          reason: event.reason || 'No reason provided',
           wasClean: event.wasClean
-        })
-        
-        // Only reconnect if it wasn't a clean close and we're still mounted
-        if (event.code !== 1000 && !cleanupDoneRef.current) {
-          console.log('🔄 Attempting to reconnect in 2 seconds...')
-          setTimeout(() => {
-            if (!cleanupDoneRef.current && !signalingWsRef.current) {
-              console.log('🔄 Reconnecting...')
-              initializeCall()
-            }
-          }, 2000)
         }
+        console.log('🔌 Signaling disconnected:', closeDetails)
+        
+        // Only show error toast if it wasn't a clean close
+        if (!event.wasClean && event.code !== 1000) {
+          if (event.code === 1006) {
+            toast.error('Signaling connection lost. Check network connection.')
+          } else {
+            toast.warning('Signaling connection closed unexpectedly')
+          }
+        }
+        
+        setIsConnected(false)
       }
       
       setIsConnecting(false)
-      isInitializingRef.current = false
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error initializing call:', err)
-      toast.error('Failed to access camera/microphone')
+      
+      // Don't show duplicate error messages (already shown in media access error handling)
+      if (err?.name !== 'NotAllowedError' && 
+          err?.name !== 'NotFoundError' && 
+          err?.name !== 'NotReadableError' &&
+          err?.name !== 'TrackStartError' &&
+          err?.name !== 'OverconstrainedError') {
+        toast.error('Failed to initialize video call. Please refresh the page.')
+      }
+      
       setIsConnecting(false)
-      isInitializingRef.current = false
     }
   }
 
   const createOffer = async () => {
-    // Prevent duplicate offers
-    if (hasCreatedOfferRef.current) {
-      console.log('⚠️ Offer already created, skipping...')
-      return
-    }
-    
     const pc = peerConnectionRef.current
     const ws = signalingWsRef.current
     
@@ -467,9 +582,6 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
       console.error('❌ WebSocket not open, state:', ws.readyState)
       return
     }
-    
-    // Mark as creating to prevent duplicates
-    hasCreatedOfferRef.current = true
     
     try {
       console.log('📤 Creating offer...')
@@ -495,8 +607,6 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
       if (err instanceof Error) {
         console.error('Error details:', err.message, err.stack)
       }
-      // Reset flag on error so we can retry
-      hasCreatedOfferRef.current = false
       toast.error('Failed to initiate call')
     }
   }
@@ -639,6 +749,7 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
         console.log('🛑 Stopped track:', track.kind)
       })
       localStreamRef.current = null
+      setLocalStream(null) // Clear state
     }
     
     // Close peer connection
@@ -661,10 +772,67 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
     // Reset flags
     hasCreatedOfferRef.current = false
     iceCandidateQueueRef.current = []
-    setHasRemoteStream(false)
-    setIsConnected(false)
-    setIsConnecting(true)
     console.log('✅ Cleanup complete')
+  }
+
+  const retryMediaAccess = async () => {
+    setMediaError(null)
+    setIsConnecting(true)
+    
+    // Clean up any existing stream first
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop())
+      localStreamRef.current = null
+      setLocalStream(null)
+    }
+    
+    // Wait a moment for resources to be released
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // Retry initialization
+    try {
+      await initializeCall()
+    } catch (err) {
+      console.error('Retry failed:', err)
+    }
+  }
+
+  const [isGeneratingSoap, setIsGeneratingSoap] = useState(false)
+
+  const generateSoapNotes = async () => {
+    if (!consultationId) {
+      toast.error('Consultation ID not found')
+      return
+    }
+
+    try {
+      setIsGeneratingSoap(true)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+      
+      const response = await fetch(`${backendUrl}/api/consultations/${consultationId}/generate_soap`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to generate SOAP notes' }))
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      toast.success('SOAP notes generated successfully!')
+      
+      // Navigate to review page to see the generated notes
+      router.push(`/consultation/${consultationId}/review`)
+    } catch (error) {
+      console.error('Error generating SOAP notes:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate SOAP notes'
+      toast.error(errorMessage)
+    } finally {
+      setIsGeneratingSoap(false)
+    }
   }
 
   const endCall = () => {
@@ -697,6 +865,69 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
 
       {/* Video Grid */}
       <main className="max-w-7xl mx-auto p-6">
+        {/* Media Error Alert */}
+        {mediaError && (
+          <div className="mb-6 bg-red-900/50 border border-red-700 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-red-200 font-semibold mb-2 flex items-center gap-2">
+                  <Video className="w-5 h-5" />
+                  Camera/Microphone Error
+                </h3>
+                <p className="text-red-100 text-sm mb-3">{mediaError}</p>
+                <div className="text-red-200 text-xs space-y-2">
+                  <p><strong>Step-by-step fix:</strong></p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li><strong>Close all video apps:</strong> Zoom, Teams, Skype, Discord</li>
+                    <li><strong>Close other browser tabs</strong> with video calls (look for camera icon in tabs)</li>
+                    <li><strong>Check browser permissions:</strong> Click lock icon (🔒) in address bar → Allow Camera & Microphone</li>
+                    <li><strong>Check Windows settings:</strong> Win+I → Privacy → Camera → Enable all camera access</li>
+                    <li><strong>Restart browser</strong> completely (close all windows, wait 5 seconds, reopen)</li>
+                    <li><strong>Click "Retry"</strong> button below after completing steps above</li>
+                  </ol>
+                  <div className="mt-3 p-2 bg-red-800/30 rounded border border-red-700/50">
+                    <p className="font-semibold mb-1">💡 Quick Tip:</p>
+                    <p>Press <kbd className="px-1.5 py-0.5 bg-red-900/50 rounded text-xs">Ctrl + Shift + Esc</kbd> to open Task Manager and check for Zoom, Teams, or other video apps still running.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 min-w-[140px]">
+                <Button
+                  onClick={retryMediaAccess}
+                  variant="outline"
+                  className="bg-red-800 hover:bg-red-700 text-white border-red-600"
+                  disabled={isConnecting}
+                >
+                  {isConnecting ? 'Retrying...' : 'Retry Camera Access'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setMediaError(null)
+                    window.location.reload()
+                  }}
+                  variant="ghost"
+                  className="text-red-200 hover:text-red-100 hover:bg-red-800/50"
+                  size="sm"
+                >
+                  Refresh Page
+                </Button>
+                <Button
+                  onClick={() => {
+                    // Open Windows Camera settings
+                    window.open('ms-settings:privacy-webcam', '_blank')
+                  }}
+                  variant="ghost"
+                  className="text-red-200 hover:text-red-100 hover:bg-red-800/50 text-xs"
+                  size="sm"
+                  title="Open Windows Camera Privacy Settings"
+                >
+                  Windows Settings
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Remote Video */}
           <Card className="bg-slate-800 border-slate-700">
@@ -705,35 +936,15 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
-                muted={false}
                 className="w-full h-full object-cover"
-                onLoadedMetadata={() => {
-                  console.log('✅ Remote video metadata loaded')
-                  if (remoteVideoRef.current) {
-                    remoteVideoRef.current.play().catch(err => {
-                      console.error('Error playing after metadata load:', err)
-                    })
-                  }
-                }}
-                onPlay={() => {
-                  console.log('✅ Remote video started playing')
-                  setHasRemoteStream(true)
-                  setIsConnected(true)
-                }}
-                onError={(e) => {
-                  console.error('❌ Remote video error:', e)
-                }}
               />
-              {!hasRemoteStream && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+              {!isConnected && (
+                <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-white">
-                    <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Video className="w-8 h-8" />
                     </div>
-                    <p className="text-lg">Waiting for {userType === 'doctor' ? 'patient' : 'doctor'}...</p>
-                    <p className="text-sm text-slate-400 mt-2">
-                      {isConnecting ? 'Connecting...' : 'Waiting for connection'}
-                    </p>
+                    <p>Waiting for {userType === 'doctor' ? 'patient' : 'doctor'}...</p>
                   </div>
                 </div>
               )}
@@ -786,6 +997,39 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
               </Button>
 
               <Button
+                onClick={() => setCaptionsEnabled(!captionsEnabled)}
+                variant="outline"
+                size="lg"
+                className={`${captionsEnabled ? 'bg-blue-600' : 'bg-slate-700'} text-white border-slate-600`}
+                title={captionsEnabled ? 'Disable Captions' : 'Enable Captions'}
+              >
+                <Subtitles className="w-5 h-5" />
+              </Button>
+
+              {userType === 'doctor' && (
+                <Button
+                  onClick={generateSoapNotes}
+                  variant="outline"
+                  size="lg"
+                  disabled={isGeneratingSoap}
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 disabled:opacity-50"
+                  title="Generate SOAP Notes"
+                >
+                  {isGeneratingSoap ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-5 h-5 mr-2" />
+                      Generate SOAP
+                    </>
+                  )}
+                </Button>
+              )}
+
+              <Button
                 onClick={endCall}
                 variant="destructive"
                 size="lg"
@@ -798,6 +1042,17 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
           </CardContent>
         </Card>
       </main>
+
+      {/* Live Captions */}
+      {captionsEnabled && localStream && (
+        <LiveCaptions
+          consultationId={consultationId}
+          userType={userType}
+          localStream={localStream}
+          enabled={captionsEnabled}
+          onToggle={() => setCaptionsEnabled(false)}
+        />
+      )}
     </div>
   )
 }

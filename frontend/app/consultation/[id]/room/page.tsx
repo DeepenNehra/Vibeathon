@@ -12,11 +12,14 @@ export default async function ConsultationRoomPage({ params, searchParams }: Pag
   const { id } = await params
   const { userType } = await searchParams
 
+  // Use getUser() instead of getSession() for more reliable auth check
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user || authError) {
+    console.error('Authentication error:', authError)
     redirect('/auth')
   }
 
