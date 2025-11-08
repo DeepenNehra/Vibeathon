@@ -62,10 +62,10 @@ export default async function LabReportsPage() {
                   AI Image Analysis
                 </Link>
                 <Link 
-                  href="/patient/records" 
-                  className="text-sm font-medium text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                  href="/patient/lab-reports" 
+                  className="text-sm font-medium text-primary"
                 >
-                  Medical Records
+                  Lab Reports
                 </Link>
               </nav>
             </div>

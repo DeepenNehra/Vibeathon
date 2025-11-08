@@ -395,7 +395,7 @@ export default function PatientDashboard() {
               <p className="text-sm text-muted-foreground mb-4">
                 Get AI-powered insights from your lab reports
               </p>
-              <Link href="/patient/dashboard/lab-reports">
+              <Link href="/patient/lab-reports">
                 <Button className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white">
                   <FileText className="w-4 h-4 mr-2" />
                   Analyze Lab Reports
