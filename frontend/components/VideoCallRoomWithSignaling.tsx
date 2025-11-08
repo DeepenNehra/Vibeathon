@@ -98,12 +98,15 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
       signalingWsRef.current = signalingWs
       
       signalingWs.onopen = () => {
-        console.log('✅ Signaling connected')
+        console.log('✅ Signaling connected as', userType)
         toast.success('Signaling server connected')
         
-        // Doctor creates offer, patient waits
+        // Doctor creates offer after a short delay to ensure both are connected
         if (userType === 'doctor') {
-          createOffer()
+          setTimeout(() => {
+            console.log('🎬 Doctor initiating call...')
+            createOffer()
+          }, 2000)
         }
       }
       
@@ -123,9 +126,11 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
             break
           case 'user-joined':
             console.log(`👤 ${message.userType} joined (${message.totalUsers} total)`)
+            toast.info(`${message.userType} joined the call`)
             // If we're the doctor and patient just joined, create offer
             if (userType === 'doctor' && message.userType === 'patient') {
-              setTimeout(() => createOffer(), 1000)
+              console.log('🎬 Patient joined, doctor creating offer...')
+              setTimeout(() => createOffer(), 1500)
             }
             break
         }
@@ -160,7 +165,18 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
     const pc = peerConnectionRef.current
     const ws = signalingWsRef.current
     
-    if (!pc || !ws || ws.readyState !== WebSocket.OPEN) return
+    if (!pc) {
+      console.error('❌ No peer connection')
+      return
+    }
+    if (!ws) {
+      console.error('❌ No signaling WebSocket')
+      return
+    }
+    if (ws.readyState !== WebSocket.OPEN) {
+      console.error('❌ WebSocket not open, state:', ws.readyState)
+      return
+    }
     
     try {
       console.log('📤 Creating offer...')
@@ -172,9 +188,11 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
         offer: offer
       }))
       
-      console.log('✅ Offer sent')
+      console.log('✅ Offer sent successfully')
+      toast.success('Call initiated')
     } catch (err) {
       console.error('❌ Error creating offer:', err)
+      toast.error('Failed to initiate call')
     }
   }
 
@@ -186,6 +204,7 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
     
     try {
       console.log('📥 Received offer, creating answer...')
+      toast.info('Received call, connecting...')
       await pc.setRemoteDescription(new RTCSessionDescription(offer))
       
       const answer = await pc.createAnswer()
@@ -196,9 +215,11 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
         answer: answer
       }))
       
-      console.log('✅ Answer sent')
+      console.log('✅ Answer sent successfully')
+      toast.success('Answered call')
     } catch (err) {
       console.error('❌ Error handling offer:', err)
+      toast.error('Failed to answer call')
     }
   }
 
@@ -210,9 +231,11 @@ export default function VideoCallRoomWithSignaling({ consultationId, userType }:
     try {
       console.log('📥 Received answer')
       await pc.setRemoteDescription(new RTCSessionDescription(answer))
-      console.log('✅ Answer applied')
+      console.log('✅ Answer applied, connection should establish')
+      toast.success('Call answered, connecting...')
     } catch (err) {
       console.error('❌ Error handling answer:', err)
+      toast.error('Failed to process answer')
     }
   }
 
