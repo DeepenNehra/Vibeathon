@@ -1,3 +1,18 @@
+<<<<<<< HEAD
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+app = FastAPI(title="Arogya-AI Backend", version="1.0.0")
+
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
+=======
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -42,11 +57,26 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+>>>>>>> 8c02c68a975937490994437626cbdcc74e65ea28
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+<<<<<<< HEAD
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "service": "arogya-ai-backend",
+        "version": "1.0.0"
+    }
+
+@app.get("/")
+async def root():
+    return {"message": "Arogya-AI Backend API"}
+=======
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -354,3 +384,4 @@ async def add_lexicon_term(term: LexiconTerm, doctor_id: Optional[str] = None):
             status_code=500,
             detail=f"Internal server error: {str(e)}"
         )
+>>>>>>> 8c02c68a975937490994437626cbdcc74e65ea28
