@@ -74,6 +74,9 @@ export default function AuthPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'doctor' | 'patient'>('doctor')
+  const [fullName, setFullName] = useState('')
+  const [yearsOfExperience, setYearsOfExperience] = useState('')
+  const [consultationFee, setConsultationFee] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -163,7 +166,13 @@ export default function AuthPage() {
           options: {
             data: {
               role: role,
-            }
+              full_name: fullName || email.split('@')[0], // Use provided name or email prefix
+              preferred_language: 'en',
+              date_of_birth: new Date(Date.now() - 30 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 30 years old
+              years_of_experience: role === 'doctor' ? parseInt(yearsOfExperience) || 0 : undefined,
+              consultation_fee: role === 'doctor' ? parseFloat(consultationFee) || 0 : undefined
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback`
           }
         })
 
@@ -178,6 +187,7 @@ export default function AuthPage() {
 
         if (data.session) {
           console.log('Session created, redirecting...')
+          // Profile will be created automatically by database trigger
           window.location.href = role === 'doctor' ? '/dashboard' : '/patient/dashboard'
           return
         } else if (data.user && !data.session) {
@@ -389,41 +399,97 @@ export default function AuthPage() {
 
             {/* Role Selection - Only show during signup */}
             {mode === 'signup' && (
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-teal-700 dark:text-teal-300">
-                  I am a:
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRole('doctor')}
-                    className={`p-4 border-2 rounded-xl transition-all duration-300 ${
-                      role === 'doctor'
-                        ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30 shadow-md'
-                        : 'border-zinc-200 dark:border-zinc-800 hover:border-teal-300 dark:hover:border-teal-700'
-                    }`}
-                  >
-                    <Stethoscope className={`w-6 h-6 mx-auto mb-2 ${role === 'doctor' ? 'text-teal-600 dark:text-teal-400' : 'text-zinc-400'}`} />
-                    <div className={`font-semibold text-sm ${role === 'doctor' ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-600 dark:text-zinc-400'}`}>
-                      Doctor
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('patient')}
-                    className={`p-4 border-2 rounded-xl transition-all duration-300 ${
-                      role === 'patient'
-                        ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30 shadow-md'
-                        : 'border-zinc-200 dark:border-zinc-800 hover:border-cyan-300 dark:hover:border-cyan-700'
-                    }`}
-                  >
-                    <Heart className={`w-6 h-6 mx-auto mb-2 ${role === 'patient' ? 'text-cyan-600 dark:text-cyan-400 animate-heartbeat' : 'text-zinc-400'}`} />
-                    <div className={`font-semibold text-sm ${role === 'patient' ? 'text-cyan-700 dark:text-cyan-300' : 'text-zinc-600 dark:text-zinc-400'}`}>
-                      Patient
-                    </div>
-                  </button>
+              <>
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                    I am a:
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRole('doctor')}
+                      className={`p-4 border-2 rounded-xl transition-all duration-300 ${
+                        role === 'doctor'
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30 shadow-md'
+                          : 'border-zinc-200 dark:border-zinc-800 hover:border-teal-300 dark:hover:border-teal-700'
+                      }`}
+                    >
+                      <Stethoscope className={`w-6 h-6 mx-auto mb-2 ${role === 'doctor' ? 'text-teal-600 dark:text-teal-400' : 'text-zinc-400'}`} />
+                      <div className={`font-semibold text-sm ${role === 'doctor' ? 'text-teal-700 dark:text-teal-300' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                        Doctor
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('patient')}
+                      className={`p-4 border-2 rounded-xl transition-all duration-300 ${
+                        role === 'patient'
+                          ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30 shadow-md'
+                          : 'border-zinc-200 dark:border-zinc-800 hover:border-cyan-300 dark:hover:border-cyan-700'
+                      }`}
+                    >
+                      <Heart className={`w-6 h-6 mx-auto mb-2 ${role === 'patient' ? 'text-cyan-600 dark:text-cyan-400 animate-heartbeat' : 'text-zinc-400'}`} />
+                      <div className={`font-semibold text-sm ${role === 'patient' ? 'text-cyan-700 dark:text-cyan-300' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                        Patient
+                      </div>
+                    </button>
+                  </div>
                 </div>
-              </div>
+
+                {/* Full Name - For both doctors and patients */}
+                <div className="space-y-2">
+                  <label htmlFor="fullName" className="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                    Full Name
+                  </label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder={role === 'doctor' ? 'Dr. John Doe' : 'Your full name'}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    disabled={loading}
+                    className="border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* Doctor-specific fields */}
+                {role === 'doctor' && (
+                  <>
+                    <div className="space-y-2">
+                      <label htmlFor="yearsOfExperience" className="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                        Years of Experience
+                      </label>
+                      <Input
+                        id="yearsOfExperience"
+                        type="number"
+                        min="0"
+                        placeholder="5"
+                        value={yearsOfExperience}
+                        onChange={(e) => setYearsOfExperience(e.target.value)}
+                        disabled={loading}
+                        className="border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="consultationFee" className="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                        Consultation Fee (₹)
+                      </label>
+                      <Input
+                        id="consultationFee"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="500.00"
+                        value={consultationFee}
+                        onChange={(e) => setConsultationFee(e.target.value)}
+                        disabled={loading}
+                        className="border-teal-200 dark:border-teal-800 focus:border-teal-500 focus:ring-teal-500"
+                      />
+                    </div>
+                  </>
+                )}
+              </>
             )}
 
             {error && (

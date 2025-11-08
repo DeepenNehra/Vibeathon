@@ -103,6 +103,13 @@ export default async function DashboardPage() {
                   <span className="relative z-10">Patient Records</span>
                   <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-gradient-to-r from-teal-500 to-cyan-500 transform scale-x-0 group-hover:scale-x-100 transition-transform" />
                 </Link>
+                <Link 
+                  href="/profile" 
+                  className="relative text-sm font-semibold text-muted-foreground hover:text-primary transition-colors group"
+                >
+                  <span className="relative z-10">Profile</span>
+                  <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-gradient-to-r from-teal-500 to-cyan-500 transform scale-x-0 group-hover:scale-x-100 transition-transform" />
+                </Link>
               </nav>
             </div>
             <LogoutButton />
