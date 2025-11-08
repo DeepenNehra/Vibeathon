@@ -3,23 +3,22 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase-server'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { StartCallButton } from '@/components/dashboard/start-call-button'
+import { DoctorAppointmentsList } from '@/components/appointments/doctor-appointments-list'
 import { LogoutButton } from '@/components/dashboard/logout-button'
 import { AvailabilityToggle } from '@/components/dashboard/availability-toggle'
 import { AnimatedLogo } from '@/components/ui/animated-logo'
 import { Activity, Zap, Sparkles, Heart, Brain, Shield } from 'lucide-react'
 
-interface Patient {
-  name: string
-  preferred_language: string
-}
-
-interface Consultation {
+interface Appointment {
   id: string
-  consultation_date: string
   patient_id: string
-  approved: boolean
-  patients: Patient | Patient[] | null
+  date: string
+  time: string
+  status: string
+  symptom_category: string | null
+  severity: number | null
+  consultation_fee: number
+  created_at: string
 }
 
 function extractDoctorName(email: string): string {
@@ -62,30 +61,39 @@ export default async function DashboardPage() {
     doctorName = extractDoctorName(session.user.email || 'Doctor')
   }
 
-  let upcomingConsultations: Consultation[] = []
+  // Fetch scheduled appointments from database
+  let scheduledAppointments: Appointment[] = []
+  let totalAppointments = 0
   
   try {
-    const { data: consultations, error } = await supabase
-      .from('consultations')
-      .select(`
-        id,
-        consultation_date,
-        patient_id,
-        approved,
-        patients (
-          name,
-          preferred_language
-        )
-      `)
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Fetch all appointments for stats
+    const { data: allAppointments } = await supabase
+      .from('appointments')
+      .select('id, status')
       .eq('doctor_id', session.user.id)
-      .order('consultation_date', { ascending: true })
-      .limit(10)
+    
+    totalAppointments = allAppointments?.length || 0
+    
+    // Fetch upcoming scheduled appointments
+    const { data: appointments, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('doctor_id', session.user.id)
+      .eq('status', 'scheduled')
+      .gte('date', today)
+      .order('date', { ascending: true })
+      .order('time', { ascending: true })
+      .limit(5)
 
-    if (!error && consultations) {
-      upcomingConsultations = consultations as Consultation[]
+    if (!error && appointments) {
+      scheduledAppointments = appointments as Appointment[]
     }
   } catch (err) {
-    upcomingConsultations = []
+    console.error('Error fetching appointments:', err)
+    scheduledAppointments = []
   }
 
   return (
@@ -187,11 +195,11 @@ export default async function DashboardPage() {
                   <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-2xl blur-lg opacity-50 group-hover/stat:opacity-75 transition-opacity" />
                   <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl transform group-hover/stat:scale-110 group-hover/stat:-rotate-2 transition-all duration-300">
                     <div className="text-4xl font-black bg-gradient-to-br from-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                      {upcomingConsultations.length}
+                      {totalAppointments}
                     </div>
                     <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-1">
                       <Activity className="w-3 h-3" />
-                      Consultations
+                      Total Appointments
                     </div>
                   </div>
                 </div>
@@ -200,11 +208,11 @@ export default async function DashboardPage() {
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl blur-lg opacity-50 group-hover/stat:opacity-75 transition-opacity" />
                   <div className="relative bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-xl transform group-hover/stat:scale-110 group-hover/stat:rotate-2 transition-all duration-300">
                     <div className="text-4xl font-black bg-gradient-to-br from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      {upcomingConsultations.filter(c => !c.approved).length}
+                      {scheduledAppointments.length}
                     </div>
                     <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-1">
                       <Zap className="w-3 h-3" />
-                      Pending
+                      Scheduled
                     </div>
                   </div>
                 </div>
@@ -213,37 +221,8 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Action Card with Hover Effect */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500" />
-          <Card className="relative border-2 border-white/20 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-2xl hover:shadow-teal-500/20 transform hover:scale-[1.02] transition-all duration-500 overflow-hidden">
-            {/* Animated gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-cyan-500/10 to-teal-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-            
-            <CardHeader className="relative">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl blur-md opacity-50 animate-pulse" />
-                  <div className="relative bg-gradient-to-br from-teal-500 to-cyan-600 p-3 rounded-xl shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                    <Activity className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                    Start New Consultation
-                    <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
-                  </CardTitle>
-                  <CardDescription className="text-base">
-                    Begin a new video consultation with real-time translation
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="relative">
-              <StartCallButton />
-            </CardContent>
-          </Card>
-        </div>
+        {/* Appointments Section */}
+        <DoctorAppointmentsList doctorId={session.user.id} />
 
         {/* Feature Cards Grid */}
         <div className="grid gap-6 md:grid-cols-3">
