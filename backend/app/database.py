@@ -329,3 +329,73 @@ class DatabaseClient:
         except Exception as e:
             print(f"Error getting transcript: {e}")
             return None
+    
+    async def save_soap_notes(
+        self,
+        consultation_id: str,
+        soap_note: Dict,
+        stigma_suggestions: List[Dict]
+    ) -> bool:
+        """
+        Save SOAP notes and stigma suggestions to a consultation.
+        
+        Args:
+            consultation_id: ID of the consultation
+            soap_note: Dictionary with SOAP note sections
+            stigma_suggestions: List of stigma suggestion dictionaries
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            self.client.table("consultations")\
+                .update({
+                    "raw_soap_note": soap_note,
+                    "de_stigma_suggestions": stigma_suggestions,
+                    "soap_notes": soap_note,  # Also update old column
+                    "stigma_suggestions": stigma_suggestions  # Also update old column
+                })\
+                .eq("id", consultation_id)\
+                .execute()
+            
+            return True
+        
+        except Exception as e:
+            print(f"Error saving SOAP notes: {e}")
+            return False
+    
+    async def get_soap_notes(self, consultation_id: str) -> Optional[Dict]:
+        """
+        Get SOAP notes for a consultation.
+        
+        Args:
+            consultation_id: ID of the consultation
+        
+        Returns:
+            Dictionary with soap_note and stigma_suggestions, or None if not found
+        """
+        try:
+            result = self.client.table("consultations")\
+                .select("raw_soap_note, de_stigma_suggestions, soap_notes, stigma_suggestions")\
+                .eq("id", consultation_id)\
+                .single()\
+                .execute()
+            
+            if not result.data:
+                return None
+            
+            # Try new column names first, fall back to old ones
+            soap_note = result.data.get("raw_soap_note") or result.data.get("soap_notes")
+            stigma_suggestions = result.data.get("de_stigma_suggestions") or result.data.get("stigma_suggestions") or []
+            
+            if not soap_note:
+                return None
+            
+            return {
+                "soap_note": soap_note,
+                "stigma_suggestions": stigma_suggestions
+            }
+        
+        except Exception as e:
+            print(f"Error getting SOAP notes: {e}")
+            return None

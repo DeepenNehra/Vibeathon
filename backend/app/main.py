@@ -23,6 +23,7 @@ from .medical_images import router as medical_images_router
 from .signaling import router as signaling_router
 from .health_tips import router as health_tips_router
 from .captions import router as captions_router
+from .summarizer import generate_notes_with_empathy
 import logging
 
 # Configure logging
@@ -517,6 +518,131 @@ async def get_patterns():
     return {
         "patterns": alert_engine.critical_patterns
     }
+
+
+# ============================================================================
+# SOAP NOTES GENERATION ENDPOINTS
+# ============================================================================
+
+@app.post("/api/consultations/{consultation_id}/generate_soap")
+async def generate_soap_notes(consultation_id: str):
+    """
+    Generate SOAP notes for a consultation.
+    
+    Fetches the consultation transcript, generates SOAP notes using AI,
+    analyzes for stigmatizing language, and saves the results to the database.
+    
+    Args:
+        consultation_id: ID of the consultation
+    
+    Returns:
+        Dictionary with generated SOAP notes and de-stigmatization suggestions
+    
+    Raises:
+        HTTPException: If consultation not found or generation fails
+    """
+    try:
+        # 1. Fetch the consultation transcript
+        logger.info(f"Fetching transcript for consultation {consultation_id}")
+        transcript = await db_client.get_transcript(consultation_id)
+        
+        if not transcript:
+            logger.error(f"Consultation {consultation_id} not found or has no transcript")
+            raise HTTPException(
+                status_code=404,
+                detail="Consultation not found"
+            )
+        
+        # 2. Generate SOAP notes with Compassion Reflex
+        logger.info(f"Generating SOAP notes for consultation {consultation_id}")
+        soap_note, stigma_suggestions = await generate_notes_with_empathy(transcript)
+        
+        # 3. Save to database
+        logger.info(f"Saving SOAP notes to database for consultation {consultation_id}")
+        try:
+            db_client.client.table("consultations")\
+                .update({
+                    "raw_soap_note": soap_note,
+                    "de_stigma_suggestions": stigma_suggestions,
+                    "soap_notes": soap_note,  # Also update old column for compatibility
+                    "stigma_suggestions": stigma_suggestions  # Also update old column
+                })\
+                .eq("id", consultation_id)\
+                .execute()
+            
+            logger.info(f"SOAP notes saved successfully for consultation {consultation_id}")
+        except Exception as db_error:
+            logger.error(f"Error saving SOAP notes to database: {db_error}")
+            # Continue anyway - we can still return the generated notes
+        
+        # 4. Return the generated notes
+        return {
+            "success": True,
+            "consultation_id": consultation_id,
+            "soap_note": soap_note,
+            "stigma_suggestions": stigma_suggestions,
+            "message": "SOAP notes generated successfully"
+        }
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except ValueError as ve:
+        logger.error(f"Validation error generating SOAP notes: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error generating SOAP notes: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate SOAP notes: {str(e)}"
+        )
+
+
+@app.get("/api/consultations/{consultation_id}/soap")
+async def get_soap_notes(consultation_id: str):
+    """
+    Get existing SOAP notes for a consultation.
+    
+    Args:
+        consultation_id: ID of the consultation
+    
+    Returns:
+        Dictionary with SOAP notes and suggestions
+    
+    Raises:
+        HTTPException: If consultation not found or no SOAP notes exist
+    """
+    try:
+        result = db_client.client.table("consultations")\
+            .select("raw_soap_note, de_stigma_suggestions, soap_notes, stigma_suggestions")\
+            .eq("id", consultation_id)\
+            .single()\
+            .execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        
+        # Try new column names first, fall back to old ones
+        soap_note = result.data.get("raw_soap_note") or result.data.get("soap_notes")
+        stigma_suggestions = result.data.get("de_stigma_suggestions") or result.data.get("stigma_suggestions") or []
+        
+        if not soap_note:
+            raise HTTPException(status_code=404, detail="No SOAP notes found for this consultation")
+        
+        return {
+            "success": True,
+            "consultation_id": consultation_id,
+            "soap_note": soap_note,
+            "stigma_suggestions": stigma_suggestions
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching SOAP notes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

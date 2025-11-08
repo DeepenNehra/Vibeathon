@@ -670,24 +670,30 @@ export default function LiveCaptions({
         const audioStream = new MediaStream([audioTrack])
         
         // Determine the best audio format with better fallback
+        // IMPORTANT: Prefer OGG Opus over WebM because:
+        // 1. OGG creates complete, self-contained chunks (each chunk is a valid OGG file)
+        // 2. WebM creates streaming chunks without headers (FFmpeg can't parse them)
+        // 3. Google Cloud STT works better with complete audio files
         let mimeType: string | undefined = undefined
         const supportedTypes = [
-          'audio/webm;codecs=opus',
+          'audio/ogg;codecs=opus',  // PREFERRED: Complete chunks with headers
+          'audio/webm;codecs=opus', // Fallback: Streaming chunks (may need buffering)
           'audio/webm',
-          'audio/ogg;codecs=opus',
           'audio/mp4'
         ]
         
         for (const type of supportedTypes) {
           if (MediaRecorder.isTypeSupported(type)) {
             mimeType = type
+            console.log(`✅ Selected audio format: ${type}`)
             break
           }
         }
         
         // If no specific type is supported, try without MIME type (browser default)
         if (!mimeType) {
-          console.warn('No specific audio format supported, using browser default')
+          console.warn('⚠️ No specific audio format supported, using browser default')
+          console.warn('   This may cause issues with audio transcription')
         }
         
         console.log(`🎤 Using audio format: ${mimeType || 'browser default'}`)

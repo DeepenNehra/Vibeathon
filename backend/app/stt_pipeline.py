@@ -317,12 +317,26 @@ class STTPipeline:
             return ('flac', False, sample_rate)
         
         # Check for raw PCM (no header)
-        if len(audio_chunk) % 2 == 0 and 8000 <= len(audio_chunk) <= 192000:  # Rough check for PCM
+        # Only treat as PCM if it doesn't have any container format signature
+        # AND the size suggests it could be raw audio samples
+        # Be more conservative - only treat very specific sizes as PCM
+        if len(audio_chunk) % 2 == 0 and 8000 <= len(audio_chunk) <= 192000:
+            # Additional check: raw PCM should not have any recognizable patterns
+            # Check first 4 bytes don't match any known format
+            header = audio_chunk[:4] if len(audio_chunk) >= 4 else b''
+            
+            # If it looks like it could be WebM/Opus (has 0x1a byte which is common in WebM)
+            if b'\x1a' in header or b'\x42' in header:
+                logger.info(f"✅ Detected WebM/Opus format (no clear signature but has WebM markers) | Sample rate: {sample_rate} Hz | Size: {len(audio_chunk)} bytes | Needs conversion: Yes")
+                return ('webm', True, sample_rate)
+            
             logger.info(f"✅ Detected raw PCM audio | Sample rate: {sample_rate} Hz (assumed 16-bit mono) | Size: {len(audio_chunk)} bytes | Needs conversion: No")
             return ('pcm', False, sample_rate)
         
         # Unknown format - log warning with header bytes
         logger.warning(f"⚠️ Unknown audio format detected | Size: {len(audio_chunk)} bytes")
+        if len(audio_chunk) >= 16:
+            logger.warning(f"   First 16 bytes (hex): {audio_chunk[:16].hex()}")
         logger.warning(f"   Assuming WebM/Opus format (will attempt conversion to PCM)")
         
         # Default: assume WebM with default sample rate
