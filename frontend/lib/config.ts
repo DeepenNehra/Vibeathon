@@ -67,8 +67,6 @@ export const getConfig = (): AppConfig => {
         autoGainControl: true,
         sampleRate: 48000,
         channelCount: 1,
-        latency: { ideal: 0.1 },
-        volume: { ideal: 1.0 },
       }
     },
     isProduction,
