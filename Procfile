@@ -1,0 +1,1 @@
+web: cd backend && python railway_main.py

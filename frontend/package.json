@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start -p 3000",
+    "lint": "eslint",
+    "replit-setup": "cd ../backend && python setup_credentials.py",
+    "replit-backend": "cd ../backend && python replit_run.py",
+    "health-check": "curl -f http://localhost:8000/health && curl -f http://localhost:3000"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",

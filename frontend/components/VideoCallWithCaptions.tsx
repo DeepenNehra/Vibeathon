@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Subtitles } from 'lucide-react'
 import VideoCallRoom from './VideoCallRoom'
 import LiveCaptions from './LiveCaptions'
+import LiveCaptionsWebSpeech from './LiveCaptionsWebSpeech'
 
 interface VideoCallWithCaptionsProps {
   consultationId: string
