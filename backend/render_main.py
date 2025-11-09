@@ -91,6 +91,29 @@ def main():
     
     setup_logging()
     
+    # Debug: Check current working directory and Python path
+    print(f"📁 Current working directory: {os.getcwd()}")
+    print(f"🐍 Python path: {sys.path[:3]}...")  # Show first 3 entries
+    
+    # Test import of FastAPI app
+    try:
+        print("🔍 Testing FastAPI app import...")
+        from app.main import app
+        print("✅ FastAPI app imported successfully")
+    except Exception as e:
+        print(f"❌ Error importing FastAPI app: {e}")
+        print("🔧 Attempting to fix import path...")
+        # Try adding backend directory to path
+        backend_path = os.path.dirname(os.path.abspath(__file__))
+        if backend_path not in sys.path:
+            sys.path.insert(0, backend_path)
+        try:
+            from app.main import app
+            print("✅ FastAPI app imported successfully after path fix")
+        except Exception as e2:
+            print(f"❌ Still failed to import: {e2}")
+            return
+    
     # Setup credentials
     google_cloud_ok = setup_credentials()
     
@@ -107,18 +130,34 @@ def main():
     print(f"🔍 Health Check: https://your-app.onrender.com/health")
     print("=" * 50)
     
-    # Start the FastAPI server
-    uvicorn.run(
-        "app.main:app",
-        host=host,
-        port=port,
-        reload=False,
-        log_level="info",
-        access_log=True,
-        workers=1,  # Single worker for Render free tier
-        timeout_keep_alive=30,
-        timeout_graceful_shutdown=10
-    )
+    try:
+        # Start the FastAPI server
+        print("🚀 Starting uvicorn server...")
+        uvicorn.run(
+            "app.main:app",
+            host=host,
+            port=port,
+            reload=False,
+            log_level="info",
+            access_log=True,
+            workers=1,  # Single worker for Render free tier
+            timeout_keep_alive=30,
+            timeout_graceful_shutdown=10
+        )
+    except Exception as e:
+        print(f"❌ Error starting server: {e}")
+        # Try alternative approach
+        print("🔧 Trying alternative server start...")
+        try:
+            uvicorn.run(
+                app,
+                host=host,
+                port=port,
+                log_level="info"
+            )
+        except Exception as e2:
+            print(f"❌ Alternative approach also failed: {e2}")
+            raise
 
 if __name__ == "__main__":
     main()

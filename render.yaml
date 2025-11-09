@@ -2,8 +2,8 @@ services:
   - type: web
     name: arogya-ai-backend
     runtime: python3
-    buildCommand: "cd backend && pip install -r requirements.txt"
-    startCommand: "cd backend && python render_main.py"
+    buildCommand: "cd backend && pip install -r requirements-minimal.txt"
+    startCommand: "cd backend && python ultra_minimal.py"
     plan: free
     healthCheckPath: "/health"
     envVars:
@@ -13,5 +13,17 @@ services:
         value: 8000
       - key: PYTHONPATH
         value: /opt/render/project/src/backend
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: PYTHONDONTWRITEBYTECODE
+        value: 1
+      - key: DISABLE_SENTENCE_TRANSFORMERS
+        value: 1
+      - key: TRANSFORMERS_OFFLINE
+        value: 1
+      - key: DISABLE_SENTENCE_TRANSFORMERS
+        value: 1
+      - key: DISABLE_COMMUNITY_LEXICON
+        value: 1
     autoDeploy: true
     branch: main
