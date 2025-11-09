@@ -21,6 +21,7 @@ from .appointments import router as appointments_router
 from .lab_reports import router as lab_reports_router
 from .medical_images import router as medical_images_router
 from .signaling import router as signaling_router
+from .voice_intake import router as voice_intake_router
 from .health_tips import router as health_tips_router
 from .captions import router as captions_router
 from .summarizer import generate_notes_with_empathy
@@ -80,6 +81,8 @@ app.include_router(lab_reports_router)
 app.include_router(medical_images_router)
 # Include signaling routes for WebRTC
 app.include_router(signaling_router)
+# Include voice intake routes
+app.include_router(voice_intake_router)
 # Include health tips routes
 app.include_router(health_tips_router)
 # Include captions routes for live transcription
