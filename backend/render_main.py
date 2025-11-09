@@ -1,5 +1,5 @@
 """
-Railway deployment entry point for Arogya-AI Backend
+Render deployment entry point for Arogya-AI Backend
 """
 import os
 import sys
@@ -13,7 +13,7 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 def setup_logging():
-    """Configure logging for Railway"""
+    """Configure logging for Render"""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -21,7 +21,7 @@ def setup_logging():
     )
 
 def setup_credentials():
-    """Setup Google Cloud credentials from Railway environment"""
+    """Setup Google Cloud credentials from Render environment"""
     try:
         credentials_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
         
@@ -34,8 +34,12 @@ def setup_credentials():
                 print(f"❌ Invalid JSON in GOOGLE_CREDENTIALS_JSON: {e}")
                 return False
             
-            # Create credentials file in Railway's writable directory
-            credentials_path = '/tmp/google-credentials.json'
+            # Create credentials file in Render's writable directory
+            credentials_path = '/opt/render/project/src/google-credentials.json'
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(credentials_path), exist_ok=True)
+            
             with open(credentials_path, 'w') as f:
                 f.write(credentials_json)
             
@@ -81,8 +85,8 @@ def validate_environment():
         print(f"   {status} {var} ({description})")
 
 def main():
-    """Main entry point for Railway deployment"""
-    print("🚀 Starting Arogya-AI Backend on Railway...")
+    """Main entry point for Render deployment"""
+    print("🚀 Starting Arogya-AI Backend on Render...")
     print("=" * 50)
     
     setup_logging()
@@ -93,14 +97,14 @@ def main():
     # Validate environment
     validate_environment()
     
-    # Railway configuration
+    # Render configuration
     port = int(os.getenv("PORT", 8000))
     host = "0.0.0.0"
     
     print("=" * 50)
     print(f"🌐 Server starting on {host}:{port}")
-    print(f"📚 API Documentation: https://your-app.railway.app/docs")
-    print(f"🔍 Health Check: https://your-app.railway.app/health")
+    print(f"📚 API Documentation: https://your-app.onrender.com/docs")
+    print(f"🔍 Health Check: https://your-app.onrender.com/health")
     print("=" * 50)
     
     # Start the FastAPI server
@@ -111,7 +115,7 @@ def main():
         reload=False,
         log_level="info",
         access_log=True,
-        workers=1,  # Single worker for Railway
+        workers=1,  # Single worker for Render free tier
         timeout_keep_alive=30,
         timeout_graceful_shutdown=10
     )

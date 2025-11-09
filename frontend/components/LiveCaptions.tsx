@@ -670,21 +670,21 @@ export default function LiveCaptions({
         })
 
         // Check if track is actually active
-        if (audioTrack.readyState !== 'live') {
+        if (audioTrack.readyState === 'ended') {
           console.warn('⚠️ Audio track not in "live" state:', audioTrack.readyState)
           
           // Task 2.3: Add retry logic if track is not ready
           let retryCount = 0
           const maxRetries = 4
           
-          while (audioTrack.readyState !== 'live' && retryCount < maxRetries) {
+          while (audioTrack.readyState === 'ended' && retryCount < maxRetries) {
             retryCount++
             console.log(`⏳ Retry ${retryCount}/${maxRetries}: Waiting 500ms for audio track to become live...`)
             await new Promise(resolve => setTimeout(resolve, 500))
             console.log(`📊 Audio track state after retry ${retryCount}:`, audioTrack.readyState)
           }
           
-          if (audioTrack.readyState !== 'live') {
+          if (audioTrack.readyState === 'ended') {
             console.error('❌ Audio track failed to become live after', maxRetries, 'retries. Current state:', audioTrack.readyState)
             return
           }
@@ -710,7 +710,7 @@ export default function LiveCaptions({
           muted: audioTrack.muted
         })
         
-        if (audioTrack.readyState !== 'live') {
+        if (audioTrack.readyState === 'ended') {
           console.error('❌ Audio track no longer live after delay:', audioTrack.readyState)
           return
         }

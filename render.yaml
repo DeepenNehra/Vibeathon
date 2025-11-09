@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: arogya-ai-backend
+    runtime: python3
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && python render_main.py"
+    plan: free
+    healthCheckPath: "/health"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: 8000
+      - key: PYTHONPATH
+        value: /opt/render/project/src/backend
+    autoDeploy: true
+    branch: main
